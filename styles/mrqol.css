@@ -1,0 +1,101 @@
+.mrqol-repairs {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.mrqol-repairs button {
+  flex: 1;
+}
+
+/* IMPORTANT: do NOT break Mausritter inventory positioning */
+#drag-area .item-card {
+  position: absolute;
+}
+
+/* Ensure overlays/badges anchor correctly without changing layout behavior */
+#drag-area .item-card {
+  /* position stays absolute (set above); this makes absolute children anchor correctly */
+  overflow: visible;
+}
+
+/* Invalid placement outline */
+#drag-area .item-card.mrqol-inv-invalid {
+  outline: 2px solid var(--color-level-error, #ff2b2b);
+  outline-offset: 0;
+}
+
+/* Invalid placement overlay */
+#drag-area .item-card .mrqol-inv-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 999999;
+  pointer-events: none;
+  background: rgba(255, 0, 0, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#drag-area .item-card .mrqol-inv-overlay-inner {
+  font-size: 42px;
+  color: var(--color-level-error, #ff2b2b);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+}
+
+/* Pack stack badge */
+#drag-area .item-card .mrqol-pack-stack {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 1000000;
+  pointer-events: none;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+}
+
+/* Top-right toggle container (buttons injected on item cards) */
+#drag-area .item-card .mrqol-card-toggles {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1000001;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none; /* key: container ignores clicks */
+}
+
+#drag-area .item-card .mrqol-card-toggles .mrqol-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.35);
+
+  /* Buttons must remain clickable */
+  pointer-events: auto;
+
+  /* Default (inactive) state */
+  opacity: 0.35;
+}
+
+#drag-area .item-card .mrqol-card-toggles .mrqol-toggle.mrqol-active {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.75);
+}
+
+#drag-area .item-card .mrqol-card-toggles .mrqol-toggle i {
+  pointer-events: none;
+}

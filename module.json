@@ -1,0 +1,14 @@
+{
+  "id": "mausritter-qol",
+  "title": "Mausritter QOL",
+  "description": "Quality of life features for Mausritter.",
+  "version": "0.1.0",
+  "compatibility": { "minimum": "13", "verified": "13.351" },
+  "esmodules": ["scripts/module.js"],
+  "styles": ["styles/mrqol.css"],
+  "languages": [
+    { "lang": "en", "name": "English", "path": "lang/en.json" },
+    { "lang": "es", "name": "Español", "path": "lang/es.json" }
+  ]
+}
+

@@ -1,0 +1,15 @@
+{
+  "MRQOL.Repairs.RepairOne": "Repair 1 pip",
+  "MRQOL.Repairs.RepairAll": "Repair all",
+  "MRQOL.Repairs.ConfirmTitle": "Repair",
+  "MRQOL.Repairs.ConfirmAll": "Repair all marked pips for this item?",
+  "MRQOL.Repairs.NoActor": "This item does not belong to an actor.",
+  "MRQOL.Repairs.NoPermission": "You don't have permission to repair this item.",
+  "MRQOL.Repairs.NothingToRepair": "There are no marked uses to repair.",
+  "MRQOL.Repairs.NotEnoughPips": "Not enough pips. Need {need}, you have {have}.",
+  "MRQOL.Repairs.Done": "Repair completed: {pips} pip(s), spent {spent} pips.",
+  "MRQOL.Repairs.NoPips": "This item has no pips to repair.",
+  "MRQOL.Repairs.ConfirmCost": "You are about to repair {pips} use(s) for {total} pips ({perPip} per pip). Confirm?",
+  "MRQOL.Repairs.YouHave": "You have {have} pips.",
+  "MRQOL.Repairs.Insufficient": "You don't have enough pips for this repair."
+}

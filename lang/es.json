@@ -1,0 +1,15 @@
+{
+  "MRQOL.Repairs.RepairOne": "Reparar 1 pip",
+  "MRQOL.Repairs.RepairAll": "Reparar todo",
+  "MRQOL.Repairs.ConfirmTitle": "Reparar",
+  "MRQOL.Repairs.ConfirmAll": "¿Reparar todas las casillas marcadas de este objeto?",
+  "MRQOL.Repairs.NoActor": "Este objeto no pertenece a ningún actor.",
+  "MRQOL.Repairs.NoPermission": "No tienes permisos para reparar este objeto.",
+  "MRQOL.Repairs.NothingToRepair": "No hay casillas que reparar.",
+  "MRQOL.Repairs.NotEnoughPips": "No tienes pepitas suficientes. Necesitas {need} y tienes {have}.",
+  "MRQOL.Repairs.Done": "Reparación completada: {pips} casilla(s), gastadas {spent} pepitas.",
+  "MRQOL.Repairs.NoPips": "Este objeto no tiene casillas de uso (pips) que reparar.",
+  "MRQOL.Repairs.ConfirmCost": "Vas a reparar {pips} pip(s) por {total} pepitas ({perPip} por pip). ¿Confirmas?",
+  "MRQOL.Repairs.YouHave": "Tienes {have} pepitas.",
+  "MRQOL.Repairs.Insufficient": "No tienes pepitas suficientes para esta reparación."
+}
