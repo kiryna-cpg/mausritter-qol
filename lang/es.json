@@ -12,6 +12,7 @@
   "MRQOL.Repairs.ConfirmCost": "Vas a reparar {pips} pip(s) por {total} pepitas ({perPip} por pip). ¿Confirmas?",
   "MRQOL.Repairs.YouHave": "Tienes {have} pepitas.",
   "MRQOL.Repairs.Insufficient": "No tienes pepitas suficientes para esta reparación.",
+  
   "MRQOL.Automation.Damage.Apply": "Aplicar Daño",
   "MRQOL.Automation.Damage.Applied": "Daño aplicado.",
   "MRQOL.Automation.Damage.TargetOne": "Selecciona exactamente un objetivo para aplicar el daño.",
@@ -35,6 +36,9 @@
   "MRQOL.Automation.Paralyzed.Name": "Paralizado",
   "MRQOL.Automation.Stunned.Name": "Aturdido",
   "MRQOL.Automation.Dead.Name": "Muerto",
+  "MRQOL.Automation.Damage.AlreadyApplied": "Este daño ya se ha aplicado a ese objetivo. Anúlalo primero para poder aplicarlo de nuevo.",
+  "MRQOL.Automation.Damage.ArmorSubtracted": "{armor} punto de defensa de Armadura restado", 
+  
   "MRQOL.Inventory.Reorder": "Reordenar inventario",
   "MRQOL.Inventory.Full": "No hay espacio disponible.",
   "MRQOL.Inventory.StorageNoConditions": "El almacén no puede contener Estados.",
@@ -43,5 +47,24 @@
   "MRQOL.Inventory.InvalidConditionZone": "Colocación inválida: los Estados deben ir en Equipaje.",
   "MRQOL.Inventory.OnlyConditionsInGrit": "Colocación inválida: solo los Estados pueden ir en Agallas.",
   "MRQOL.Inventory.NoSpaceEquipWeapon": "No hay espacio para equipar el arma.",
-  "MRQOL.Automation.Damage.AlreadyApplied": "Este daño ya se ha aplicado a ese objetivo. Anúlalo primero para poder aplicarlo de nuevo."
+  "MRQOL.Inventory.NoSpaceEquipArmor": "No hay espacio para equipar la armadura.",
+  "MRQOL.Inventory.NoSpaceEquipSpell": "No hay espacios disponibles para equipar el hechizo.",
+  "MRQOL.Inventory.NoSpaceEquipAmmunition": "No hay espacio disponible para equipar la munición.",
+  "MRQOL.Inventory.NoSpaceEquipGrit": "No hay espacio disponible para equipar Condiciones.",
+
+  "MRQOL.Pips.State.Broken": "Roto",
+  "MRQOL.Pips.State.Empty": "Vacío",
+  "MRQOL.Rest.Button.Short": "Descanso corto",
+  "MRQOL.Rest.Button.Long": "Descanso largo",
+  "MRQOL.Rest.Button.Full": "Descanso completo",
+  "MRQOL.Rest.Chat.Short": "Descanso corto",
+  "MRQOL.Rest.Chat.Long": "Descanso largo",
+  "MRQOL.Rest.Chat.Full": "Descanso completo",
+  "MRQOL.Wear.Chat.CombatEnd": "Desgaste tras combate",
+  "MRQOL.Wear.Chat.SpellCast": "Desgaste de hechizo",
+  
+  "MRQOL.Overflow.Toggle": "Mostrar/ocultar inventario excedente",
+  
+  "MRQOL.Settings.OverflowSlots.Name": "Casillas de excedente",
+  "MRQOL.Settings.OverflowSlots.Hint": "Cuántas casillas tiene el inventario secundario (excedente). Sólo aparece cuando hay excedente."
 }

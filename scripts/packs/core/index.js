@@ -127,6 +127,54 @@ function addHeaderButtons(app, buttons) {
 }
 
 /* -------------------------------------------- */
+/* Pips UI helper (Broken / Empty indicator)     */
+/* -------------------------------------------- */
+
+function injectPipsStateToItemSheet(app, html) {
+  if (!game.settings.get(MODULE_ID, "core.pipsHelpers.enabled")) return;
+
+  const item = getItemFromApp(app);
+  if (!item) return;
+
+  const root = getRootElement(app, html);
+  if (!root) return;
+
+  const state = getUsageStateIcon(item);
+
+  // Remove previous overlays (avoid duplicates on re-render)
+  root.querySelectorAll(".mrqol-usage-indicator-sheet").forEach((n) => n.remove());
+
+  if (!state) return;
+
+  // Find the primary item image in the sheet (be conservative)
+  const img =
+    root.querySelector("img.profile") ||
+    root.querySelector(".sheet-header img") ||
+    root.querySelector("header img") ||
+    root.querySelector("img");
+
+  if (!img) return;
+
+  // Use the existing parent container to avoid resizing/reflow
+  const container = img.parentElement;
+  if (!container) return;
+
+  container.classList.add("mrqol-item-image-wrap");
+
+  const badge = document.createElement("span");
+  badge.className = "mrqol-usage-indicator-sheet";
+
+  // Tooltip on hover
+  badge.setAttribute("title", state.title);
+
+  // Mask (no square edges)
+  badge.style.webkitMaskImage = `url("${state.src}")`;
+  badge.style.maskImage = `url("${state.src}")`;
+
+  container.appendChild(badge);
+}
+
+/* -------------------------------------------- */
 /* Inventory Layout + Rules                     */
 /* -------------------------------------------- */
 
@@ -134,7 +182,9 @@ const INV_FLAG_KEY = "layout";
 const ENCUMBERED_ID = "encumbered";
 const ENCUMBERED_ICON = `modules/${MODULE_ID}/assets/icons/encumbered.png`;
 const EQUIP_ICON = `modules/${MODULE_ID}/assets/icons/mouse-icon.png`;
-const OVERFLOW_ICON = `modules/${MODULE_ID}/assets/icons/overflow.svg`; // ✅ confirmed path
+const OVERFLOW_ICON = `modules/${MODULE_ID}/assets/icons/overflow.svg`;
+const BROKEN_ICON = `modules/${MODULE_ID}/assets/icons/Broken.png`;
+const EMPTY_ICON = `modules/${MODULE_ID}/assets/icons/Empty.png`;
 const INVALID_PLACEMENT_FLAG = "invalidPlacement";
 const EQUIPPED_FLAG = "equipped";
 const GRIT_ACTIVE_FLAG = "gritActive";
@@ -2357,6 +2407,26 @@ async function reorderInventory(actor, root) {
 /* Equip toggles + movement                      */
 /* -------------------------------------------- */
 
+/**
+ * Usage state indicator for items with usage pips.
+ * - Weapons / Armour: show Broken when fully marked.
+ * - Other items (including spells, gear, ammo): show Empty when fully marked.
+ * @param {Item} item
+ * @returns {{src:string, title:string}|null}
+ */
+function getUsageStateIcon(item) {
+  const max = Number(item?.system?.pips?.max ?? 0) || 0;
+  const val = Number(item?.system?.pips?.value ?? 0) || 0;
+  if (!max) return null;
+  if (val < max) return null;
+
+  const isBreakable = item.type === "weapon" || item.type === "armor";
+  const src = isBreakable ? BROKEN_ICON : EMPTY_ICON;
+  const titleKey = isBreakable ? "MRQOL.Pips.State.Broken" : "MRQOL.Pips.State.Empty";
+  const title = game.i18n?.has?.(titleKey) ? game.i18n.localize(titleKey) : (isBreakable ? "Broken" : "Empty");
+  return { src, title };
+}
+
 function isAmmo(item) {
   const tag = item?.system?.tag ?? item?.system?.category ?? "";
   return String(tag).toLowerCase() === "ammunition";
@@ -2373,6 +2443,7 @@ function isItemEquipped(item) {
 
   if (profile.invType === "character") {
     if (item.type === "weapon") return layout.zone === "carried";
+    if (item.type === "spell") return layout.zone === "carried";
     if (item.type === "armor") return layout.zone === "worn";
     if (isAmmo(item)) return layout.zone === "worn";
     return false;
@@ -2384,6 +2455,12 @@ function isItemEquipped(item) {
     if (layout.zone === "carried") return true;
     return profile.invType === "creature" ? manual : false;
   }
+
+  if (item.type === "spell") {
+  // For non-character inventories, treat spells like weapons: equipped if in carried
+  if (layout.zone === "carried") return true;
+  return false;
+}
 
   if (item.type === "armor" || isAmmo(item)) return manual;
 
@@ -2456,6 +2533,17 @@ async function equipItemToSlots(item, map) {
       return false;
     }
 
+    if (item.type === "spell") {
+      const res = tryAnchors(["carried:main", "carried:off"]);
+      if (res) {
+        await moveItemToPlacement(item, res.placement, map, res.anchorId);
+        return true;
+      }
+      if (profile.invType === "creature") return false;
+      ui.notifications?.warn?.(game.i18n.localize("MRQOL.Inventory.NoSpaceEquipSpell"));
+      return false;
+    }    
+
     if (item.type === "armor" || isAmmo(item)) return moveItemToPackAuto(item, map);
     return false;
   }
@@ -2463,7 +2551,17 @@ async function equipItemToSlots(item, map) {
   if (item.type === "weapon") {
     const res = tryAnchors(["carried:main", "carried:off"]);
     if (!res) {
-      ui.notifications?.warn?.("No hay espacios disponibles para equipar el arma");
+      ui.notifications?.warn?.(game.i18n.localize("MRQOL.Inventory.NoSpaceEquipWeapon"));
+      return false;
+    }
+    await moveItemToPlacement(item, res.placement, map, res.anchorId);
+    return true;
+  }
+
+  if (item.type === "spell") {
+    const res = tryAnchors(["carried:main", "carried:off"]);
+    if (!res) {
+      ui.notifications?.warn?.(game.i18n.localize("MRQOL.Inventory.NoSpaceEquipSpell"));
       return false;
     }
     await moveItemToPlacement(item, res.placement, map, res.anchorId);
@@ -2474,7 +2572,7 @@ async function equipItemToSlots(item, map) {
     if (w === 2 && h === 1) {
       const res = tryAnchors(["carried:off", "worn:bottom"]);
       if (!res) {
-        ui.notifications?.warn?.("No hay espacios disponibles para equipar la armadura");
+        ui.notifications?.warn?.(game.i18n.localize("MRQOL.Inventory.NoSpaceEquipArmor"));
         return false;
       }
       await moveItemToPlacement(item, res.placement, map, res.anchorId);
@@ -2484,7 +2582,7 @@ async function equipItemToSlots(item, map) {
     if (w === 1 && h === 2) {
       const res = tryAnchors(["worn:top", "worn:bottom"]);
       if (!res) {
-        ui.notifications?.warn?.("No hay espacios disponibles para equipar la armadura");
+        ui.notifications?.warn?.(game.i18n.localize("MRQOL.Inventory.NoSpaceEquipArmor"));
         return false;
       }
       await moveItemToPlacement(item, res.placement, map, res.anchorId);
@@ -2493,7 +2591,7 @@ async function equipItemToSlots(item, map) {
 
     const res = tryAnchors(["worn:top", "worn:bottom"]);
     if (!res) {
-      ui.notifications?.warn?.("No hay espacios disponibles para equipar la armadura");
+      ui.notifications?.warn?.(game.i18n.localize("MRQOL.Inventory.NoSpaceEquipArmor"));
       return false;
     }
     await moveItemToPlacement(item, res.placement, map, res.anchorId);
@@ -2503,7 +2601,7 @@ async function equipItemToSlots(item, map) {
   if (isAmmo(item)) {
     const res = tryAnchors(["worn:top", "worn:bottom"]);
     if (!res) {
-      ui.notifications?.warn?.("No hay espacios disponibles para equipar la munición");
+      ui.notifications?.warn?.(game.i18n.localize("MRQOL.Inventory.NoSpaceEquipAmmunition"));
       return false;
     }
     await moveItemToPlacement(item, res.placement, map, res.anchorId);
@@ -2574,7 +2672,7 @@ async function toggleGritForCondition(actor, itemId, map) {
 
   const placement = chooseAutoGritPlacement(actor, itemId);
   if (!placement) {
-    ui.notifications?.warn?.("No hay espacios de Agallas disponibles");
+    ui.notifications?.warn?.(game.i18n.localize("MRQOL.Inventory.NoSpaceEquipGrit"));
     return;
   }
   await moveItemToPlacement(item, placement, map, placement.cells[0]);
@@ -2606,14 +2704,44 @@ function refreshToggleButtonsForRoot(actor, root, { includeOverflow = false } = 
     // limpia duplicados
     toggles.querySelectorAll(".mrqol-equip-toggle, .mrqol-grit-toggle").forEach((n) => n.remove());
 
+        // Usage state indicator (Broken / Empty)
+    const state = getUsageStateIcon(item);
+    let badge = card.querySelector(".mrqol-usage-indicator");
+    if (!state) {
+      badge?.remove();
+    } else {
+      if (!badge) {
+        badge = document.createElement("span");
+        badge.className = "mrqol-usage-indicator";
+        card.appendChild(badge);
+      }
+      // Tooltip
+      badge.setAttribute("title", state.title);
+
+      // Mask (no square edges)
+      badge.style.webkitMaskImage = `url("${state.src}")`;
+      badge.style.maskImage = `url("${state.src}")`;
+    }
+
     // Equip toggle
-    const needsEquip = profile.rules.allowEquip && (item.type === "weapon" || item.type === "armor" || isAmmo(item));
+    const needsEquip =
+      profile.rules.allowEquip &&
+      (item.type === "weapon" || item.type === "armor" || item.type === "spell" || isAmmo(item));
+
     if (needsEquip) {
       const btn = document.createElement("a");
       btn.className = "item-control mrqol-equip-toggle mrqol-toggle";
       btn.setAttribute("title", "Equip/Unequip");
 
-      const iconClass = item.type === "armor" ? "fa-solid fa-shield-halved" : "fa-solid fa-shirt";
+      let iconClass = "fa-solid fa-shirt"; // default fallback
+
+      // Icons by type/tag
+      if (item.type === "armor") iconClass = "fa-solid fa-shield-halved";
+      else if (item.type === "weapon") iconClass = "fa-solid fa-shirt";
+      else if (isAmmo(item)) iconClass = "fa-solid fa-bow-arrow";
+      else if (item.type === "spell") iconClass = "fa-solid fa-hand-sparkles";
+      else if (item.type === "condition") iconClass = "fa-solid fa-bolt";
+
       btn.innerHTML = `<i class="${iconClass}"></i>`;
       btn.classList.toggle("mrqol-active", isEquippedByLayout(item));
 
@@ -3063,8 +3191,25 @@ export const CorePack = {
     forceAdvantageDialogIfEncumbered();
     registerInventoryReactiveHooks();
 
+        // Game Paused: replace the default clockwork icon with mouse icon (keep spin behavior)
+    try {
+      const pauseIcon = `modules/${MODULE_ID}/assets/icons/mouse-icon.png`;
+
+      // Foundry config (best-effort, forward-compatible)
+      CONFIG.ui = CONFIG.ui ?? {};
+      CONFIG.ui.pause = CONFIG.ui.pause ?? {};
+      if (typeof CONFIG.ui.pause === "object") CONFIG.ui.pause.icon = pauseIcon;
+
+      // If the pause element already exists (rare at init), update it too
+      const img = document.querySelector("#pause img");
+      if (img) img.setAttribute("src", pauseIcon);
+    } catch (err) {
+      console.warn("MRQOL | Failed to set pause icon", err);
+    }
+
     // Repairs
     Hooks.on("renderItemSheet", injectRepairsUI);
+    Hooks.on("renderItemSheet", injectPipsStateToItemSheet);
     Hooks.on("getApplicationHeaderButtons", addHeaderButtons);
     Hooks.on("getApplicationV1HeaderButtons", addHeaderButtons);
     Hooks.on("getItemSheetHeaderButtons", addHeaderButtons);

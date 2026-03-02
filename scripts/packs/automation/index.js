@@ -11,6 +11,408 @@ import { MODULE_ID } from "../../framework/paths.js";
  * - Stats paths: actor.system.stats.{strength|dexterity|will}.value
  */
 
+/* -------------------------------------------- */
+/* Rest UI + Wear automation (phase 1)          */
+/* Insert BEFORE function isFeatureEnabled()    */
+/* -------------------------------------------- */
+
+/** @returns {boolean} */
+function isRestUIEnabled() {
+  return game.settings.get(MODULE_ID, "automation.rest.enabled") !== false;
+}
+
+/** @returns {boolean} */
+function isWearEnabled() {
+  return game.settings.get(MODULE_ID, "automation.wear.enabled") !== false;
+}
+
+/** @returns {boolean} */
+function isWearSpellsEnabled() {
+  return game.settings.get(MODULE_ID, "automation.wear.spells.enabled") !== false;
+}
+
+function _i18n(key, fallback) {
+  try {
+    if (game?.i18n?.has?.(key)) return game.i18n.localize(key);
+  } catch (_e) {}
+  return fallback ?? key;
+}
+
+function _notify(msg) {
+  try {
+    ui.notifications?.info(msg);
+  } catch (_e) {}
+}
+
+/**
+ * Evaluate a roll synchronously (Foundry v13).
+ * @param {Roll} roll
+ * @returns {Roll}
+ */
+function _evalSync(roll) {
+  // v13: async removed; use evaluateSync
+  return roll.evaluateSync();
+}
+
+/** @returns {number} */
+function _rollD6Plus1() {
+  const r = _evalSync(new Roll("1d6 + 1"));
+  return Number(r.total) || 0;
+}
+
+/** @returns {number} */
+function _rollD6() {
+  const r = _evalSync(new Roll("1d6"));
+  return Number(r.total) || 0;
+}
+
+/**
+ * Post a small, readable chat log entry (GM-facing).
+ * @param {Actor} actor
+ * @param {string} title
+ * @param {string[]} lines
+ */
+async function postAutomationLog(actor, title, lines) {
+  const speaker = ChatMessage.getSpeaker({ actor });
+  const content = `
+    <div class="mrqol-log">
+      <h3 style="margin:0 0 .25rem 0;">${title}</h3>
+      <ul style="margin:.25rem 0 0 1.1rem; padding:0;">
+        ${lines.map((l) => `<li>${l}</li>`).join("")}
+      </ul>
+    </div>
+  `;
+
+  await ChatMessage.create({
+    speaker,
+    content,
+    whisper: game.user?.isGM ? [] : undefined
+  });
+}
+
+/**
+ * Add rest buttons to actor sheet header (GM only).
+ * Hook: getActorSheetHeaderButtons
+ * @param {ActorSheet} sheet
+ * @param {Array} buttons
+ */
+function addRestButtons(sheet, buttons) {
+  if (!isRestUIEnabled()) return;
+  if (!game.user?.isGM) return;
+
+  const actor = sheet?.actor;
+  if (!actor) return;
+
+  // Avoid duplicates if sheet re-renders
+  if (buttons.some((b) => b?.class?.includes("mrqol-rest-"))) return;
+
+  buttons.unshift(
+    {
+      label: _i18n("MRQOL.Rest.Button.Short", "Short Rest"),
+      class: "mrqol-rest-short",
+      icon: "fas fa-mug-hot",
+      onclick: () => applyShortRest(actor)
+    },
+    {
+      label: _i18n("MRQOL.Rest.Button.Long", "Long Rest"),
+      class: "mrqol-rest-long",
+      icon: "fas fa-campground",
+      onclick: () => applyLongRest(actor)
+    },
+    {
+      label: _i18n("MRQOL.Rest.Button.Full", "Full Rest"),
+      class: "mrqol-rest-full",
+      icon: "fas fa-bed",
+      onclick: () => applyFullRest(actor)
+    }
+  );
+}
+
+/** @returns {{hpValue:number,hpMax:number}} */
+function _readHP(actor) {
+  const hpValue = Number(foundry.utils.getProperty(actor, "system.health.value")) || 0;
+  const hpMax = Number(foundry.utils.getProperty(actor, "system.health.max")) || hpValue;
+  return { hpValue, hpMax };
+}
+
+/** @returns {{str:number,dex:number,wil:number,strMax:number,dexMax:number,wilMax:number}} */
+function _readStats(actor) {
+  const str = Number(foundry.utils.getProperty(actor, "system.stats.strength.value")) || 0;
+  const dex = Number(foundry.utils.getProperty(actor, "system.stats.dexterity.value")) || 0;
+  const wil = Number(foundry.utils.getProperty(actor, "system.stats.will.value")) || 0;
+
+  const strMax = Number(foundry.utils.getProperty(actor, "system.stats.strength.max")) || str;
+  const dexMax = Number(foundry.utils.getProperty(actor, "system.stats.dexterity.max")) || dex;
+  const wilMax = Number(foundry.utils.getProperty(actor, "system.stats.will.max")) || wil;
+
+  return { str, dex, wil, strMax, dexMax, wilMax };
+}
+
+async function applyShortRest(actor) {
+  const { hpValue, hpMax } = _readHP(actor);
+  const heal = _rollD6Plus1();
+  const newHP = Math.min(hpMax, hpValue + heal);
+
+  await actor.update({ "system.health.value": newHP });
+
+  await postAutomationLog(actor, _i18n("MRQOL.Rest.Chat.Short", "Short Rest"), [
+    `${actor.name}: HP ${hpValue} → ${newHP} (+${newHP - hpValue})`
+  ]);
+
+  _notify(`${actor.name}: ${_i18n("MRQOL.Rest.Chat.Short", "Short Rest")}`);
+}
+
+async function applyLongRest(actor) {
+  const { hpValue, hpMax } = _readHP(actor);
+  const stats = _readStats(actor);
+
+  // Long rest: restore all HP.
+  // If HP already full, restore d6 to ONE attribute score (choose).
+  if (hpValue < hpMax) {
+    await actor.update({ "system.health.value": hpMax });
+    await postAutomationLog(actor, _i18n("MRQOL.Rest.Chat.Long", "Long Rest"), [
+      `${actor.name}: HP ${hpValue} → ${hpMax}`
+    ]);
+    _notify(`${actor.name}: ${_i18n("MRQOL.Rest.Chat.Long", "Long Rest")}`);
+    return;
+  }
+
+  // HP already full -> pick stat to restore
+  const pick = await new Promise((resolve) => {
+    new Dialog({
+      title: _i18n("MRQOL.Rest.Chat.Long", "Long Rest"),
+      content: `<p>${actor.name}: HP is already full. Restore <b>1d6</b> to which attribute?</p>`,
+      buttons: {
+        str: { label: "STR", callback: () => resolve("strength") },
+        dex: { label: "DEX", callback: () => resolve("dexterity") },
+        wil: { label: "WIL", callback: () => resolve("will") }
+      },
+      default: "str",
+      close: () => resolve(null)
+    }).render(true);
+  });
+
+  if (!pick) return;
+
+  const amt = _rollD6();
+  const path = `system.stats.${pick}.value`;
+  const before = Number(foundry.utils.getProperty(actor, path)) || 0;
+  const maxPath = `system.stats.${pick}.max`;
+  const max = Number(foundry.utils.getProperty(actor, maxPath)) || before;
+  const after = Math.min(max, before + amt);
+
+  await actor.update({ [path]: after });
+
+  await postAutomationLog(actor, _i18n("MRQOL.Rest.Chat.Long", "Long Rest"), [
+    `${actor.name}: HP already full (${hpMax})`,
+    `${pick.toUpperCase()} ${before} → ${after} (+${after - before})`
+  ]);
+
+  _notify(`${actor.name}: ${_i18n("MRQOL.Rest.Chat.Long", "Long Rest")}`);
+}
+
+async function applyFullRest(actor) {
+  const { hpValue, hpMax } = _readHP(actor);
+  const { str, dex, wil, strMax, dexMax, wilMax } = _readStats(actor);
+
+  const update = {
+    "system.health.value": hpMax,
+    "system.stats.strength.value": strMax,
+    "system.stats.dexterity.value": dexMax,
+    "system.stats.will.value": wilMax
+  };
+
+  await actor.update(update);
+
+  await postAutomationLog(actor, _i18n("MRQOL.Rest.Chat.Full", "Full Rest"), [
+    `${actor.name}: HP ${hpValue} → ${hpMax}`,
+    `STR ${str} → ${strMax}`,
+    `DEX ${dex} → ${dexMax}`,
+    `WIL ${wil} → ${wilMax}`
+  ]);
+
+  _notify(`${actor.name}: ${_i18n("MRQOL.Rest.Chat.Full", "Full Rest")}`);
+}
+
+/* -------------------------------------------- */
+/* Wear automation (combat end + spell cast)    */
+/* -------------------------------------------- */
+
+function _isEquipped(item) {
+  // MRQOL flag from layout/overflow logic (if you already set it elsewhere)
+  if (item?.getFlag?.(MODULE_ID, "equipped") === true) return true;
+
+  // Layout flag: { zone: "worn" } is a good proxy for "equipped"
+  const layout = item?.getFlag?.(MODULE_ID, "layout");
+  if (layout?.zone === "worn") return true;
+
+  // Optional system flag fallback
+  const sysEq = foundry.utils.getProperty(item, "system.equipped");
+  if (sysEq === true) return true;
+
+  return false;
+}
+
+function _isAmmo(item) {
+  // Mausritter often uses tags; be defensive
+  const tags = foundry.utils.getProperty(item, "system.tags");
+  const tagStr = Array.isArray(tags) ? tags.join(" ").toLowerCase() : String(tags ?? "").toLowerCase();
+  if (tagStr.includes("ammunition")) return true;
+  if (String(item?.name ?? "").toLowerCase().includes("arrow")) return true;
+  if (String(item?.name ?? "").toLowerCase().includes("arrows")) return true;
+  if (String(item?.name ?? "").toLowerCase().includes("stones")) return true;
+  return false;
+}
+
+async function _markOneUsage(item) {
+  const max = Number(foundry.utils.getProperty(item, "system.pips.max")) || 0;
+  const val = Number(foundry.utils.getProperty(item, "system.pips.value")) || 0;
+  if (!max) return false;
+  if (val >= max) return false;
+  await item.update({ "system.pips.value": val + 1 });
+  return true;
+}
+
+/**
+ * Combat wear, phase 1 heuristic:
+ * - At combat end, roll 1d6 per candidate item; on 4-6 mark 1 usage.
+ * - Candidates: weapon/armor (+ ammo optional)
+ * - Optional: equipped-only for PCs
+ * @param {Combat} combat
+ */
+async function applyCombatWear(combat) {
+  if (!isWearEnabled()) return;
+
+  const equippedOnly = game.settings.get(MODULE_ID, "automation.wear.combat.equippedOnly") !== false;
+  const includeAmmo = game.settings.get(MODULE_ID, "automation.wear.combat.includeAmmo") !== false;
+  const alwaysMarkSilvered = game.settings.get(MODULE_ID, "automation.wear.combat.alwaysMarkSilvered") !== false;
+
+  /** @type {Map<string, Actor>} */
+  const actors = new Map();
+  for (const c of combat?.combatants ?? []) {
+    const a = c?.actor;
+    if (a?.uuid) actors.set(a.uuid, a);
+  }
+  if (!actors.size) return;
+
+  for (const actor of actors.values()) {
+    const items = actor.items ?? [];
+    const candidates = items.filter((it) => {
+      if (!it) return false;
+      if (it.type === "weapon" || it.type === "armor") return true;
+      if (includeAmmo && _isAmmo(it)) return true;
+      return false;
+    });
+
+    const finalCandidates = candidates.filter((it) => {
+      if (!equippedOnly) return true;
+      // If actor is not a character, be permissive
+      if (actor.type !== "character") return true;
+      // Equipped-only for characters
+      return _isEquipped(it);
+    });
+
+    if (!finalCandidates.length) continue;
+
+    const lines = [];
+    for (const it of finalCandidates) {
+      // Silvered weapons: always mark 1 usage (RAW)
+      if (alwaysMarkSilvered && it.type === "weapon" && String(it.name ?? "").toLowerCase().includes("silver")) {
+        const did = await _markOneUsage(it);
+        if (did) lines.push(`${it.name}: +1 usage (silvered)`);
+        continue;
+      }
+
+      const roll = _rollD6();
+      if (roll >= 4) {
+        const did = await _markOneUsage(it);
+        if (did) lines.push(`${it.name}: 1d6=${roll} → +1 usage`);
+      } else {
+        lines.push(`${it.name}: 1d6=${roll} → no wear`);
+      }
+    }
+
+    if (lines.length) {
+      await postAutomationLog(actor, _i18n("MRQOL.Wear.Chat.CombatEnd", "Wear after combat"), lines);
+    }
+  }
+}
+
+/**
+ * Spell wear from a ChatMessage:
+ * - No re-roll: uses existing message.rolls (if any).
+ * - Marks one usage per die showing 4-6 (Mausritter spell casting rule).
+ * - Best effort to find the spell item on the speaker actor.
+ * @param {ChatMessage} message
+ */
+async function applySpellWearFromMessage(message) {
+  if (!isWearEnabled()) return;
+  if (!isWearSpellsEnabled()) return;
+
+  const speakerActorId = message?.speaker?.actor;
+  const actor = speakerActorId ? game.actors?.get(speakerActorId) : null;
+  if (!actor) return;
+
+  const rolls = message?.rolls ?? [];
+  if (!Array.isArray(rolls) || !rolls.length) return;
+
+  // Gather d6 results from any roll in the message
+  const d6Results = [];
+  for (const r of rolls) {
+    try {
+      const terms = r?.terms ?? [];
+      for (const t of terms) {
+        // DiceTerm: faces === 6 and has results[]
+        if (t?.faces === 6 && Array.isArray(t?.results)) {
+          for (const res of t.results) {
+            const v = Number(res?.result);
+            if (Number.isFinite(v)) d6Results.push(v);
+          }
+        }
+      }
+    } catch (_e) {}
+  }
+  if (!d6Results.length) return;
+
+  // Heuristic: only treat as spell cast if the card mentions spell/tablet/casting OR actor has a spell whose name appears
+  const html = String(message?.content ?? "");
+  const text = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+  const looksLikeSpell = text.includes("spell") || text.includes("tablet") || text.includes("cast") || text.includes("hechizo") || text.includes("tablilla") || text.includes("lanza");
+
+  // Try to find a spell item
+  let spell = null;
+  const spells = actor.items?.filter((i) => i?.type === "spell") ?? [];
+  if (spells.length) {
+    spell =
+      spells.find((s) => text.includes(String(s.name ?? "").toLowerCase())) ??
+      spells[0]; // fallback to first spell if it looks like spell cast
+  }
+
+  if (!looksLikeSpell || !spell) return;
+
+  const marks = d6Results.filter((v) => v >= 4).length;
+  if (marks <= 0) {
+    await postAutomationLog(actor, _i18n("MRQOL.Wear.Chat.SpellCast", "Spell wear"), [
+      `${spell.name}: no usage marked (rolled ${d6Results.join(", ")})`
+    ]);
+    return;
+  }
+
+  // Mark usage N times, capped by max
+  const max = Number(foundry.utils.getProperty(spell, "system.pips.max")) || 0;
+  const val = Number(foundry.utils.getProperty(spell, "system.pips.value")) || 0;
+  if (!max) return;
+
+  const next = Math.min(max, val + marks);
+  if (next === val) return;
+
+  await spell.update({ "system.pips.value": next });
+
+  await postAutomationLog(actor, _i18n("MRQOL.Wear.Chat.SpellCast", "Spell wear"), [
+    `${spell.name}: rolled ${d6Results.join(", ")} → +${next - val} usage (${val} → ${next})`
+  ]);
+}
+
 /** @returns {boolean} */
 function isFeatureEnabled() {
   return game.settings.get(MODULE_ID, "automation.damage.enabled") !== false;
@@ -70,6 +472,65 @@ function extractOverflowStat(message) {
 }
 
 /**
+ * Get equipped armor value for the actor.
+ * - character: prefer MRQOL equipped flag OR layout zone "worn"
+ * - others (hireling/creature): treat any armor as effectively equipped (pick best)
+ * @param {Actor} actor
+ * @returns {number}
+ */
+function getEquippedArmorValue(actor) {
+  if (!actor) return 0;
+
+  const armors = actor.items?.filter((i) => i?.type === "armor") ?? [];
+  if (!armors.length) return 0;
+
+  const armorValueOf = (it) => {
+    const v = Number(foundry.utils.getProperty(it, "system.armor.value"));
+    return Number.isFinite(v) ? Math.max(0, v) : 0;
+  };
+
+  // Non-characters: everything counts as equipped -> take the best armor value
+  if (actor.type !== "character") {
+    return armors.reduce((best, it) => Math.max(best, armorValueOf(it)), 0);
+  }
+
+  // Characters: only equipped armor counts
+  const isEquipped = (it) => {
+    // MRQOL derived flag (set when zone is "worn")
+    if (it.getFlag(MODULE_ID, "equipped") === true) return true;
+
+    // Layout zone worn (more reliable than item.system flags)
+    const layout = it.getFlag(MODULE_ID, "layout");
+    if (layout?.zone === "worn") return true;
+
+    // Fallback if system has an equipped-like flag (safe optional)
+    const sysEq = foundry.utils.getProperty(it, "system.equipped");
+    if (sysEq === true) return true;
+
+    return false;
+  };
+
+  const equippedArmors = armors.filter(isEquipped);
+  if (!equippedArmors.length) return 0;
+
+  // If multiple equipped armors exist, take the best
+  return equippedArmors.reduce((best, it) => Math.max(best, armorValueOf(it)), 0);
+}
+
+/**
+ * Compute damage after armor.
+ * @param {number} rawDamage
+ * @param {number} armorValue
+ * @returns {{finalDamage:number, armorSubtracted:number}}
+ */
+function computeArmorReduction(rawDamage, armorValue) {
+  const d = Math.max(0, Number(rawDamage) || 0);
+  const a = Math.max(0, Number(armorValue) || 0);
+  const armorSubtracted = Math.min(d, a);
+  return { finalDamage: d - armorSubtracted, armorSubtracted };
+}
+
+/**
  * Get current HP and a stat value from an actor.
  * @param {Actor} actor
  * @param {"strength"|"dexterity"|"will"} stat
@@ -109,7 +570,9 @@ function buildUndoPayload(target, overflowStat, before, breakdown, damage) {
     attrDamage: breakdown.attrDamage,
     at: Date.now()
   };
-  /**
+}
+
+/**
  * Ledger of damage applications per chat message.
  * Stored on the damage ChatMessage to prevent re-applying the same damage to the same target.
  *
@@ -125,6 +588,54 @@ function buildUndoPayload(target, overflowStat, before, breakdown, damage) {
  * }
  * @param {ChatMessage} message
  */
+
+// Fallback (client-only) ledger in case ChatMessage flags can't be persisted.
+// Key: `${message.id}:${actorUuid}`
+// Value: { ...payload, used:boolean }
+const _damageAppliedMemory = new Map();
+
+/**
+ * @param {ChatMessage} message
+ * @param {Token} target
+ */
+function _memKey(message, target) {
+  const actorUuid = target?.actor?.uuid;
+  return actorUuid ? `${message.id}:${actorUuid}` : null;
+}
+
+/**
+ * @param {ChatMessage} message
+ * @param {Token} target
+ * @returns {object|null}
+ */
+function _getMemoryEntry(message, target) {
+  const k = _memKey(message, target);
+  if (!k) return null;
+  const v = _damageAppliedMemory.get(k);
+  return v && typeof v === "object" ? v : null;
+}
+
+/**
+ * @param {ChatMessage} message
+ * @param {Token} target
+ */
+function _isAppliedInMemory(message, target) {
+  const entry = _getMemoryEntry(message, target);
+  return !!(entry && entry.used === false);
+}
+
+/**
+ * @param {ChatMessage} message
+ * @param {Token} target
+ * @param {object|null} payloadOrNull
+ */
+function _setMemoryEntry(message, target, payloadOrNull) {
+  const k = _memKey(message, target);
+  if (!k) return;
+  if (!payloadOrNull) _damageAppliedMemory.delete(k);
+  else _damageAppliedMemory.set(k, payloadOrNull);
+}
+
 function getDamageLedger(message) {
   const raw = message.getFlag(MODULE_ID, "automation.damageLedger");
   if (raw && typeof raw === "object" && raw.v === 1 && raw.applied && typeof raw.applied === "object") return raw;
@@ -148,7 +659,7 @@ function getLedgerEntryForTarget(message, target) {
   const actorUuid = target?.actor?.uuid;
   if (!actorUuid) return null;
   const ledger = getDamageLedger(message);
-  return ledger.applied?.[actorUuid] ?? null;
+  return ledger.applied?.[actorUuid] ?? _getMemoryEntry(message, target) ?? null;
 }
 
 /**
@@ -160,17 +671,38 @@ function isDamageAppliedToTarget(message, target) {
   const entry = getLedgerEntryForTarget(message, target);
   return !!(entry && entry.used === false);
 }
-}
 
 /**
- * Apply damage to a single token's actor:
- * - subtract from HP
- * - overflow goes to chosen stat (default STR)
- * @param {Token} token
- * @param {number} damage
- * @param {"strength"|"dexterity"|"will"} overflowStat
- * @returns {Promise<{ hpDamage:number, attrDamage:number, overflowStat:"strength"|"dexterity"|"will", hpAfter:number, attrAfter:number }>}
+ * Update Apply/Undo button states for a rendered chat message.
+ * @param {ChatMessage} message
+ * @param {HTMLElement} root
  */
+function refreshDamageButtons(message, root) {
+  if (!(root instanceof HTMLElement)) return;
+
+  const btnRow = root.querySelector(".mrqol-damage-actions");
+  if (!(btnRow instanceof HTMLElement)) return;
+
+  const applyBtn = btnRow.querySelector("button.mrqol-apply-damage");
+  const undoBtn = btnRow.querySelector("button.mrqol-undo-damage");
+
+  const currentTarget = getSingleTarget();
+  const entry = currentTarget ? getLedgerEntryForTarget(message, currentTarget) : null;
+  const alreadyApplied =
+    currentTarget ? (isDamageAppliedToTarget(message, currentTarget) || _isAppliedInMemory(message, currentTarget)) : false;
+
+  // Apply: visually disable if already applied for the current target (optional but helpful)
+  if (applyBtn instanceof HTMLButtonElement) {
+    applyBtn.disabled = !!alreadyApplied;
+  }
+
+  // Undo: always visible, enabled only if there is an entry and it's not used
+  if (undoBtn instanceof HTMLButtonElement) {
+    undoBtn.hidden = false;
+    undoBtn.disabled = !entry || !!entry.used;
+  }
+}
+
 async function applyDamageToToken(token, damage, overflowStat) {
   const actor = token?.actor;
   if (!actor) throw new Error("No actor on targeted token");
@@ -250,11 +782,15 @@ function statShortLabel(stat) {
  * @param {Token} target
  * @param {{ hpDamage:number, attrDamage:number, overflowStat:"strength"|"dexterity"|"will" }} breakdown
  */
-async function postDamageAppliedMessage(target, breakdown) {
+async function postDamageAppliedMessage(target, breakdown, armorSubtracted = 0) {
   const targetName = target?.name ?? game.i18n.localize("MRQOL.Automation.Damage.UnknownTarget");
   const hpDamage = Number(breakdown?.hpDamage ?? 0) || 0;
   const attrDamage = Number(breakdown?.attrDamage ?? 0) || 0;
   const stat = statShortLabel(breakdown?.overflowStat ?? "strength");
+  const armor = Number(armorSubtracted) || 0;
+  const armorText = armor > 0
+    ? game.i18n.format("MRQOL.Automation.Damage.ArmorSubtracted", { armor })
+    : "";
 
   // If no overflow, omit attribute part for cleaner UX
   const contentKey =
@@ -262,12 +798,17 @@ async function postDamageAppliedMessage(target, breakdown) {
       ? "MRQOL.Automation.Damage.ChatAppliedOverflow"
       : "MRQOL.Automation.Damage.ChatAppliedHpOnly";
 
-  const content = game.i18n.format(contentKey, {
-    target: targetName,
-    hp: hpDamage,
-    attr: attrDamage,
-    stat
-  });
+let content = game.i18n.format(contentKey, {
+  target: targetName,
+  hp: hpDamage,
+  attr: attrDamage,
+  stat
+});
+
+if (armorText) {
+  // Append armor note inside paragraph
+  content = content.replace("</p>", ` <em>(${armorText})</em></p>`);
+}
 
   await ChatMessage.create({
     content,
@@ -542,7 +1083,7 @@ async function resolveStrInjurySave(message, target, strValue) {
 
   await message.setFlag(MODULE_ID, "automation.strInjuryProcessed", true);
 
-  const roll = await (new Roll("1d20")).evaluate({ async: true });
+  const roll = await (new Roll("1d20")).evaluateSync();
   const total = roll.total ?? 0;
   const success = total <= (Number(strValue) || 0);
 
@@ -620,19 +1161,24 @@ async function tryApplyDamageFromMessage(message) {
     return false;
   }
 
-  // Prevent re-applying the same message damage to the same target unless it was undone
-  if (isDamageAppliedToTarget(message, target)) {
+  // Prevent re-applying the same message damage to the same target unless it was undone.
+  // Use BOTH persisted ledger + in-memory fallback (for cases where message flags can't be written).
+  if (isDamageAppliedToTarget(message, target) || _isAppliedInMemory(message, target)) {
     warn("MRQOL.Automation.Damage.AlreadyApplied");
     return false;
   }
 
-  const overflowStat = extractOverflowStat(message);
+const overflowStat = extractOverflowStat(message);
 
-  // Read "before" snapshot for undo
-  const before = readHpAndStat(target.actor, overflowStat);
+// Armor reduction (from equipped armor item)
+const armorValue = getEquippedArmorValue(target.actor);
+const { finalDamage, armorSubtracted } = computeArmorReduction(damage, armorValue);
 
-  // Apply
-  const breakdown = await applyDamageToToken(target, damage, overflowStat);
+// Read "before" snapshot for undo
+const before = readHpAndStat(target.actor, overflowStat);
+
+// Apply (use reduced damage)
+const breakdown = await applyDamageToToken(target, finalDamage, overflowStat);
 
   // Store undo + applied ledger on the original damage message (per target)
   try {
@@ -650,13 +1196,16 @@ async function tryApplyDamageFromMessage(message) {
       ledger.applied[actorUuid] = { ...payload, used: false };
       await setDamageLedger(message, ledger);
     }
+
+    // Always set local fallback memory once damage is applied (even if setFlag fails).
+    _setMemoryEntry(message, target, { ...payload, used: false });
   } catch (err) {
     // Non-fatal: damage already applied
     console.warn("MRQOL | Failed to set damage ledger", err);
   }
 
   info("MRQOL.Automation.Damage.Applied");
-  await postDamageAppliedMessage(target, breakdown);
+  await postDamageAppliedMessage(target, breakdown, armorSubtracted);
 
   // STR injury save on STR damage (overflow to STR)
   if (breakdown.overflowStat === "strength" && (breakdown.attrDamage ?? 0) > 0) {
@@ -685,7 +1234,7 @@ async function tryUndoDamageFromMessage(message) {
   }
 
   const ledger = getDamageLedger(message);
-  const data = ledger.applied?.[actorUuid] ?? null;
+  const data = ledger.applied?.[actorUuid] ?? _getMemoryEntry(message, target) ?? null;
 
   if (!data) {
     warn("MRQOL.Automation.Undo.NotAvailable");
@@ -716,6 +1265,10 @@ async function tryUndoDamageFromMessage(message) {
   // Mark used so Apply can be done again later
   ledger.applied[actorUuid] = { ...data, used: true };
   await setDamageLedger(message, ledger);
+  _setMemoryEntry(message, target, { ...data, used: true });
+
+// Allow re-apply after undo: already handled by marking the memory entry used=true above.
+// (No extra action needed.)
 
   info("MRQOL.Automation.Undo.Done");
   await ChatMessage.create({
@@ -736,7 +1289,7 @@ function onRenderChatMessage(message, html) {
   const damage = extractDamageTotal(message);
   if (!damage || damage <= 0) return;
 
-  const root = html?.[0] instanceof HTMLElement ? html[0] : html;
+  const root = html instanceof HTMLElement ? html : html?.[0];
   if (!(root instanceof HTMLElement)) return;
 
   // Insert buttons at the bottom of the Mausritter card
@@ -761,7 +1314,7 @@ function onRenderChatMessage(message, html) {
     const applyBtn = document.createElement("button");
     applyBtn.type = "button";
     applyBtn.className = "mrqol-apply-damage";
-    applyBtn.innerHTML = `<i class="fa-solid fa-bolt"></i> ${game.i18n.localize(
+    applyBtn.innerHTML = `<i class="fa-solid fa-droplet"></i> ${game.i18n.localize(
       "MRQOL.Automation.Damage.Apply"
     )}`;
     applyBtn.addEventListener("click", async (ev) => {
@@ -769,6 +1322,7 @@ function onRenderChatMessage(message, html) {
       ev.stopPropagation();
       try {
         await tryApplyDamageFromMessage(message);
+        refreshDamageButtons(message, root);
       } catch (err) {
         console.error("MRQOL | Failed to apply damage", err);
         warn("MRQOL.Automation.Damage.Failed");
@@ -778,56 +1332,79 @@ function onRenderChatMessage(message, html) {
     btnRow.appendChild(applyBtn);
   }
 
-  // Undo button (only when undo data exists; no duplicates)
 // Determine current target state for button enable/disable
 const currentTarget = getSingleTarget();
-const alreadyApplied = currentTarget ? isDamageAppliedToTarget(message, currentTarget) : false;
 const entry = currentTarget ? getLedgerEntryForTarget(message, currentTarget) : null;
+const alreadyApplied = currentTarget ? isDamageAppliedToTarget(message, currentTarget) : false;
 
-// If a target is selected and damage already applied for it, disable Apply
-const applyBtnEl = btnRow.querySelector("button.mrqol-apply-damage");
-if (applyBtnEl instanceof HTMLButtonElement) {
-  applyBtnEl.disabled = !!alreadyApplied;
-}
+// Don't hard-disable Apply based on current target here, because target selection doesn't re-render chat messages.
+// The click handler enforces the real safety check (ledger + memory).
 
-// Undo button: show only if there is ledger data for the selected target
-if (entry && !btnRow.querySelector("button.mrqol-undo-damage")) {
+// Ensure Undo button exists (but toggle visibility/disabled based on selected target)
+let undoBtnEl = btnRow.querySelector("button.mrqol-undo-damage");
+if (!undoBtnEl) {
   const undoBtn = document.createElement("button");
   undoBtn.type = "button";
   undoBtn.className = "mrqol-undo-damage";
   undoBtn.innerHTML = `<i class="fa-solid fa-rotate-left"></i> ${game.i18n.localize(
     "MRQOL.Automation.Undo.Button"
   )}`;
-  undoBtn.disabled = !!entry.used;
-
   undoBtn.addEventListener("click", async (ev) => {
     ev.preventDefault();
     ev.stopPropagation();
     try {
       await tryUndoDamageFromMessage(message);
+      refreshDamageButtons(message, root);
     } catch (err) {
       console.error("MRQOL | Failed to undo damage", err);
       warn("MRQOL.Automation.Damage.Failed");
     }
   });
-
   btnRow.appendChild(undoBtn);
+  undoBtnEl = undoBtn;
 }
+
+// Undo should always be visible (target selection doesn't re-render chat messages).
+// We only enable it when the currently selected target has an applicable ledger entry.
+if (undoBtnEl instanceof HTMLButtonElement) {
+  undoBtnEl.hidden = false;
+  undoBtnEl.disabled = !entry || !!entry.used;
+}
+refreshDamageButtons(message, root);
+}
+
+function refreshAllDamageButtons() {
+  // Iterate rendered chat messages that have our button row
+  const nodes = document.querySelectorAll(".chat-message .mrqol-damage-actions");
+  for (const row of nodes) {
+    const msgEl = row.closest(".chat-message");
+    const msgId = msgEl?.dataset?.messageId;
+    if (!msgId) continue;
+    const message = game.messages?.get(msgId);
+    if (!message) continue;
+    // root element for this message
+    refreshDamageButtons(message, msgEl);
+  }
 }
 
 function onCreateChatMessage(message) {
   if (!isFeatureEnabled()) return;
-  if (!isAutoApplyEnabled()) return;
 
-  // Only auto-apply when there's exactly one target.
-  const target = getSingleTarget();
-  if (!target) return;
+  // Auto-apply weapon damage
+  if (isAutoApplyEnabled()) {
+    const target = getSingleTarget();
+    if (target) {
+      tryApplyDamageFromMessage(message).catch((err) => {
+        console.error("MRQOL | Auto-apply damage failed", err);
+        warn("MRQOL.Automation.Damage.Failed");
+      });
+    }
+  }
 
-  // Fire-and-forget (but still catch errors)
-  tryApplyDamageFromMessage(message).catch((err) => {
-    console.error("MRQOL | Auto-apply damage failed", err);
-    warn("MRQOL.Automation.Damage.Failed");
-  });
+  // Wear (spells) - best effort, no re-roll
+  applySpellWearFromMessage(message).catch((err) =>
+    console.error("MRQOL | Spell wear failed", err)
+  );
 }
 
 function isHouseRuleStrZeroEnabled() {
@@ -897,9 +1474,18 @@ export const AutomationPack = {
   init() {
     if (!isFeatureEnabled()) return;
 
-    Hooks.on("renderChatMessage", onRenderChatMessage);
+    Hooks.on("renderChatMessageHTML", onRenderChatMessage);
     Hooks.on("createChatMessage", onCreateChatMessage);
-	Hooks.on("updateActor", onUpdateActor);
+	  Hooks.on("updateActor", onUpdateActor);
+    // Rest UI buttons (GM)
+    Hooks.on("getActorSheetHeaderButtons", addRestButtons);
+
+    // Wear at end of combat
+    Hooks.on("deleteCombat", (combat) => applyCombatWear(combat).catch(console.error));
+    Hooks.on("updateCombat", (combat, change) => {
+      if (change?.active === false) applyCombatWear(combat).catch(console.error);
+    });
+    Hooks.on("targetToken", refreshAllDamageButtons);
   },
   ready() {}
 };

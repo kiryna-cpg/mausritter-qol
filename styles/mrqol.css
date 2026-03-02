@@ -97,6 +97,107 @@
   pointer-events: none;
 }
 
+/* Weapon equip icon (mouse) - force black via mask */
+#drag-area .item-card .mrqol-card-toggles .mrqol-toggle .mrqol-equip-mouse,
+#mrqol-ov-drag-area .item-card .mrqol-card-toggles .mrqol-toggle .mrqol-equip-mouse {
+  width: 13px;
+  height: 13px;
+  display: block;
+
+  background: #000; /* black */
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+
+  pointer-events: none; /* click goes to the button */
+}
+
+/* Usage state overlay (Broken / Empty) - inventory cards (mask version, no square edges) */
+#drag-area .item-card .mrqol-usage-indicator,
+#mrqol-ov-drag-area .item-card .mrqol-usage-indicator {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 46px;
+  height: 46px;
+  z-index: 1000005;
+  opacity: 0.92;
+
+  /* Hoverable for tooltip */
+  pointer-events: auto;
+
+  /* Solid red painted through the icon mask */
+  background: rgba(255, 0, 0, 0.95);
+
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+
+  filter: drop-shadow(0 0 6px rgba(255, 0, 0, 0.55));
+}
+
+/* Optional: subtle red haze behind the icon for readability */
+#drag-area .item-card:has(.mrqol-usage-indicator)::after,
+#mrqol-ov-drag-area .item-card:has(.mrqol-usage-indicator)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 0, 0, 0.10);
+  z-index: 1000004;
+  pointer-events: none;
+}
+
+/* Item sheet image container: do NOT wrap/move the img, just mark its current parent */
+.mrqol-item-image-wrap {
+  position: relative;
+}
+
+/* Centered overlay icon on top of the item image (mask version, no square edges) */
+.mrqol-usage-indicator-sheet {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 46px;
+  height: 46px;
+  z-index: 5;
+  opacity: 0.92;
+
+  /* Hoverable for tooltip */
+  pointer-events: auto;
+
+  /* Solid red painted through the icon mask */
+  background: rgba(255, 0, 0, 0.95);
+
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+
+  filter: drop-shadow(0 0 6px rgba(255, 0, 0, 0.55));
+}
+
+/* Optional red haze on the image itself */
+.mrqol-item-image-wrap:has(.mrqol-usage-indicator-sheet)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 0, 0, 0.10);
+  border-radius: 6px;
+  z-index: 4;
+  pointer-events: none;
+}
+
 /* ========================================================= */
 /* OVERFLOW TOGGLE (button on Actor sheet)                    */
 /* ========================================================= */

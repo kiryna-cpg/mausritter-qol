@@ -64,6 +64,68 @@ export function registerSettings() {
   });
 
 /* -------------------------------------------- */
+/* Automation: Rest UI                           */
+/* -------------------------------------------- */
+
+  game.settings.register(MODULE_ID, "automation.rest.enabled", {
+    name: "Automation: Rest UI buttons (short/long/full)",
+    hint: "Adds rest buttons to actor sheets and applies Mausritter rest & healing rules with a chat log.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true
+  });
+
+/* -------------------------------------------- */
+/* Automation: Wear (usage)                       */
+/* -------------------------------------------- */
+
+  game.settings.register(MODULE_ID, "automation.wear.enabled", {
+    name: "Automation: Wear after combat / spells",
+    hint: "Marks item usage after combat (d6, 4-6) and after spell casts (based on the spell roll).",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true
+  });
+
+  game.settings.register(MODULE_ID, "automation.wear.combat.equippedOnly", {
+    name: "Automation: Wear (combat) - equipped only",
+    hint: "If enabled, only equipped weapons/armour/ammunition are checked for wear at combat end.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true
+  });
+
+  game.settings.register(MODULE_ID, "automation.wear.combat.includeAmmo", {
+    name: "Automation: Wear (combat) - include ammunition",
+    hint: "If enabled, ammunition items (tag: Ammunition) can also gain usage after combat.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true
+  });
+
+  game.settings.register(MODULE_ID, "automation.wear.combat.alwaysMarkSilvered", {
+    name: "Automation: Wear (combat) - always mark silvered weapons",
+    hint: "If enabled, weapons with 'silver' in their name always mark 1 usage after combat (RAW for silvered weapons).",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true
+  });
+
+  game.settings.register(MODULE_ID, "automation.wear.spells.enabled", {
+    name: "Automation: Wear (spells)",
+    hint: "When a spell is cast, mark usage based on dice results (4-6) without re-rolling.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true
+  });
+
+/* -------------------------------------------- */
 /* Automation: STR 0 rule                        */
 /* -------------------------------------------- */
 
@@ -110,7 +172,15 @@ game.settings.register(MODULE_ID, "automation.strZero.houseRule.scope", {
     default: true
   });
 
-  
+    // Pips helpers (Broken / Empty indicator)
+  game.settings.register(MODULE_ID, "core.pipsHelpers.enabled", {
+    name: "Pips UI: Broken/Empty indicator",
+    hint: "Show a Broken icon for weapons/armour and an Empty icon for other items when usage dots are fully marked.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true
+  });
 
   // Optional utility
   game.settings.register(MODULE_ID, "core.inventoryLayout.reorderButton", {

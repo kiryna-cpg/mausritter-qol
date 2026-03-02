@@ -12,6 +12,7 @@
   "MRQOL.Repairs.ConfirmCost": "You are about to repair {pips} use(s) for {total} pips ({perPip} per pip). Confirm?",
   "MRQOL.Repairs.YouHave": "You have {have} pips.",
   "MRQOL.Repairs.Insufficient": "You don't have enough pips for this repair.",
+
   "MRQOL.Automation.Damage.Apply": "Apply Damage",
   "MRQOL.Automation.Damage.Applied": "Damage applied.",
   "MRQOL.Automation.Damage.TargetOne": "Target exactly one token to apply damage.",
@@ -35,6 +36,9 @@
   "MRQOL.Automation.Paralyzed.Name": "Paralyzed",
   "MRQOL.Automation.Stunned.Name": "Stunned",
   "MRQOL.Automation.Dead.Name": "Dead",
+  "MRQOL.Automation.Damage.AlreadyApplied": "This damage has already been applied to that target. Undo first to apply again.",
+  "MRQOL.Automation.Damage.ArmorSubtracted": "{armor} Armor defense point subtracted",
+  
   "MRQOL.Inventory.Reorder": "Reorder inventory",
   "MRQOL.Inventory.Full": "No space available.",
   "MRQOL.Inventory.StorageNoConditions": "Storage cannot contain Conditions.",
@@ -43,5 +47,24 @@
   "MRQOL.Inventory.InvalidConditionZone": "Invalid placement: Conditions must be in Pack.",
   "MRQOL.Inventory.OnlyConditionsInGrit": "Invalid placement: Only Conditions can be stored in Grit.",
   "MRQOL.Inventory.NoSpaceEquipWeapon": "No space available to equip the weapon.",
-  "MRQOL.Automation.Damage.AlreadyApplied": "This damage has already been applied to that target. Undo first to apply again."
+  "MRQOL.Inventory.NoSpaceEquipArmor": "No space available to equip the armor.",
+  "MRQOL.Inventory.NoSpaceEquipSpell": "No available slots to equip the spell.",
+  "MRQOL.Inventory.NoSpaceEquipAmmunition": "No space available to equip the ammunition.",
+  "MRQOL.Inventory.NoSpaceEquipGrit": "No space available to equip Conditions.",
+
+  "MRQOL.Pips.State.Broken": "Broken",
+  "MRQOL.Pips.State.Empty": "Empty",
+  "MRQOL.Rest.Button.Short": "Short Rest",
+  "MRQOL.Rest.Button.Long": "Long Rest",
+  "MRQOL.Rest.Button.Full": "Full Rest",
+  "MRQOL.Rest.Chat.Short": "Short Rest",
+  "MRQOL.Rest.Chat.Long": "Long Rest",
+  "MRQOL.Rest.Chat.Full": "Full Rest",
+  "MRQOL.Wear.Chat.CombatEnd": "Wear after combat",
+  "MRQOL.Wear.Chat.SpellCast": "Spell wear",
+  
+  "MRQOL.Overflow.Toggle": "Toggle overflow inventory",
+  
+  "MRQOL.Settings.OverflowSlots.Name": "Overflow slots",
+  "MRQOL.Settings.OverflowSlots.Hint": "How many slots exist in the secondary (overflow) inventory. Shown only when overflow is used."
 }
