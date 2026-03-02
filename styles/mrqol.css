@@ -1,0 +1,195 @@
+@import url('https://fonts.googleapis.com/css2?family=Germania+One&display=swap');
+
+.mrqol-repairs {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.mrqol-repairs button {
+  flex: 1;
+}
+
+/* ========================================================= */
+/* ACTOR SHEET INVENTORY (real Mausritter #drag-area)         */
+/* ========================================================= */
+
+/* IMPORTANT: do NOT break Mausritter inventory positioning */
+#drag-area .item-card {
+  position: absolute;
+  overflow: visible; /* allow overlays/badges */
+}
+
+/* Invalid placement outline */
+#drag-area .item-card.mrqol-inv-invalid {
+  outline: 2px solid var(--color-level-error, #ff2b2b);
+  outline-offset: 0;
+}
+
+/* Invalid placement overlay */
+#drag-area .item-card .mrqol-inv-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 999999;
+  pointer-events: none;
+  background: rgba(255, 0, 0, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#drag-area .item-card .mrqol-inv-overlay-inner {
+  font-size: 42px;
+  color: var(--color-level-error, #ff2b2b);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+}
+
+/* Pack stack badge (backwards compat) */
+#drag-area .item-card .mrqol-pack-stack {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 1000000;
+  pointer-events: none;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+}
+
+/* Top-right toggle container (equip/grit) */
+#drag-area .item-card .mrqol-card-toggles {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1000001;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: auto; /* allow clicks */
+}
+
+#drag-area .item-card .mrqol-card-toggles .mrqol-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  width: 15px;
+  height: 15px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.35);
+  pointer-events: auto; /* buttons clickable */
+  opacity: 0.35;
+}
+
+#drag-area .item-card .mrqol-card-toggles .mrqol-toggle.mrqol-active {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.75);
+}
+
+#drag-area .item-card .mrqol-card-toggles .mrqol-toggle i {
+  pointer-events: none;
+}
+
+/* ========================================================= */
+/* OVERFLOW TOGGLE (button on Actor sheet)                    */
+/* ========================================================= */
+
+.mrqol-overflow-controls {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0.25rem 0;
+  position: relative;
+  z-index: 50;
+}
+
+.mrqol-overflow-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.mrqol-overflow-toggle .mrqol-overflow-icon {
+  width: 100px;   /* ✅ as requested */
+  height: 100px;  /* ✅ as requested */
+}
+
+.mrqol-overflow-toggle .mrqol-overflow-count {
+  font-weight: 700;
+  min-width: 1.2em;
+  text-align: center;
+}
+
+/* ========================================================= */
+/* Overflow Window alignment fix (tweak these 2 values)       */
+/* ========================================================= */
+
+/* 1) Ajuste fino del “centro útil” del contenedor.
+   Cambia estos valores hasta que el grid quede centrado.
+   (con tu captura, normalmente hay que mover un poco a la derecha y arriba) */
+.mrqol-ov-root {
+  --mrqol-ov-shift-x: 0px;   /* prueba: 20px */
+  --mrqol-ov-shift-y: -10px;  /* prueba: -10px */
+}
+
+/* 2) Aplica el offset a TODO lo colocado con origen centrado */
+.mrqol-ov-root #mrqol-ov-drag-area .item-slot-dashed,
+.mrqol-ov-root #mrqol-ov-drag-area .item-card {
+  transform: translate(var(--mrqol-ov-shift-x), var(--mrqol-ov-shift-y)) translate3d(0,0,0);
+}
+
+/* 3) Importante: esto NO rompe tus translate3d inline:
+   se suma como una transformación extra gracias a que está en una regla separada.
+   Si Foundry escribe transform inline, esta regla no lo reemplaza.
+   Por eso, en vez de tocar transform, lo correcto es mover el ORIGEN: */
+.mrqol-ov-root #mrqol-ov-drag-area .item-slot-dashed,
+.mrqol-ov-root #mrqol-ov-drag-area .item-card {
+  margin-left: var(--mrqol-ov-shift-x);
+  margin-top: var(--mrqol-ov-shift-y);
+}
+
+/* ========================================================= */
+/* OVERFLOW WINDOW item-card toggles                          */
+/* ========================================================= */
+
+#mrqol-ov-drag-area .item-card .mrqol-card-toggles {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1000001;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+#mrqol-ov-drag-area .item-card .mrqol-card-toggles .mrqol-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  width: 15px;
+  height: 15px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.35);
+  pointer-events: auto;
+  opacity: 0.35;
+}
+
+#mrqol-ov-drag-area .item-card .mrqol-card-toggles .mrqol-toggle.mrqol-active {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.75);
+}
+
+#mrqol-ov-drag-area .item-card .mrqol-card-toggles .mrqol-toggle i {
+  pointer-events: none;
+}

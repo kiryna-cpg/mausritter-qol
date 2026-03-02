@@ -1,0 +1,33 @@
+{
+  "id": "mausritter-qol",
+  "title": "Mausritter QOL",
+  "description": "Quality-of-life features for the Mausritter system on Foundry VTT.",
+  "version": "0.1.5",
+  "authors": [
+    { "name": "Kiryna" }
+  ],
+  "compatibility": {
+    "minimum": "13",
+    "verified": "13.351"
+  },
+  "relationships": {
+    "requires": [
+      { "id": "mausritter", "type": "system" }
+    ]
+  },
+  "esmodules": [
+    "scripts/module.js"
+  ],
+  "styles": [
+    "styles/mrqol.css"
+  ],
+  "languages": [
+    { "lang": "en", "name": "English", "path": "lang/en.json" },
+    { "lang": "es", "name": "Español", "path": "lang/es.json" }
+  ],
+  "url": "https://github.com/kiryna-cpg/mausritter-qol",
+  "manifest": "https://raw.githubusercontent.com/kiryna-cpg/mausritter-qol/main/module.json",
+  "download": "https://github.com/kiryna-cpg/mausritter-qol/releases/download/0.1.5/mausritter-qol.zip",
+  "bugs": "https://github.com/kiryna-cpg/mausritter-qol/issues",
+  "license": "MIT"
+}
