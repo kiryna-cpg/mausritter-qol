@@ -29,7 +29,9 @@ export function getRepairQuote(item, amount) {
   const toRepair = amount === "all" ? used : 1;
 
   const cost = getNumber(item, PATHS.itemCost, 0);
-  const rounding = game.settings.get(MODULE_ID, "core.repairs.rounding");
+  const rounding = game.settings.settings.has(`${MODULE_ID}.core.repairs.rounding`)
+  ? game.settings.get(MODULE_ID, "core.repairs.rounding")
+  : "round";
 
   const perPipRaw = cost * 0.10;
   const perPip = cost > 0 ? Math.max(1, roundCost(perPipRaw, rounding)) : 0;

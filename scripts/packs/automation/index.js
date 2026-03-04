@@ -49,20 +49,38 @@ function _notify(msg) {
  * @param {Roll} roll
  * @returns {Roll}
  */
-function _evalSync(roll) {
-  // v13: async removed; use evaluateSync
-  return roll.evaluateSync();
+async function _eval(roll) {
+  // v13: evaluate() is async; safest for any roll terms
+  return await roll.evaluate();
 }
 
-/** @returns {number} */
-function _rollD6Plus1() {
-  const r = _evalSync(new Roll("1d6 + 1"));
+/**
+ * Roll a formula, evaluate async, and post the roll to chat so dice are visible.
+ * @param {Actor} actor
+ * @param {string} formula
+ * @param {string} flavor
+ * @returns {Promise<Roll>}
+ */
+async function _rollToChat(actor, formula, flavor) {
+  const roll = new Roll(formula);
+  await _eval(roll);
+
+  // Show the actual dice roll in chat
+  await roll.toMessage({
+    speaker: ChatMessage.getSpeaker({ actor }),
+    flavor
+  });
+
+  return roll;
+}
+
+async function _rollD6Plus1() {
+  const r = await _eval(new Roll("1d6 + 1"));
   return Number(r.total) || 0;
 }
 
-/** @returns {number} */
-function _rollD6() {
-  const r = _evalSync(new Roll("1d6"));
+async function _rollD6() {
+  const r = await _eval(new Roll("1d6"));
   return Number(r.total) || 0;
 }
 
@@ -90,6 +108,116 @@ async function postAutomationLog(actor, title, lines) {
   });
 }
 
+const REST_UNDO_FLAG = "restUndo";
+
+/**
+ * Create a chat log message that includes an Undo Rest button (wired in render hook).
+ * Stores undo payload in message flags so it can be reversed once.
+ */
+async function postRestLogWithUndo(actor, title, lines, undo) {
+  const speaker = ChatMessage.getSpeaker({ actor });
+
+  const content = `
+    <div class="mrqol-log mrqol-rest-log">
+      <h3 style="margin:0 0 .25rem 0;">${title}</h3>
+      <ul style="margin:.25rem 0 0 1.1rem; padding:0;">
+        ${lines.map((l) => `<li>${l}</li>`).join("")}
+      </ul>
+      <div class="mrqol-rest-actions" style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;"></div>
+    </div>
+  `;
+
+  await ChatMessage.create({
+    speaker,
+    content,
+    flags: {
+      [MODULE_ID]: {
+        [REST_UNDO_FLAG]: {
+          ...undo,
+          used: false
+        }
+      }
+    }
+  });
+}
+
+function getRestUndoData(message) {
+  return message?.getFlag?.(MODULE_ID, REST_UNDO_FLAG) ?? null;
+}
+
+async function setRestUndoData(message, data) {
+  await message?.setFlag?.(MODULE_ID, REST_UNDO_FLAG, data);
+}
+
+async function tryUndoRestFromMessage(message) {
+  const data = getRestUndoData(message);
+  if (!data) return false;
+  if (data.used) return false;
+  if (!game.user?.isGM) return false;
+
+  const actor = await fromUuid?.(data.actorUuid);
+  if (!actor) return false;
+
+  // Restore actor fields
+  const actorBefore = data.actorBefore ?? {};
+  if (Object.keys(actorBefore).length) {
+    await actor.update(actorBefore);
+  }
+
+  // Restore ration pips if consumed
+  const ration = data.ration;
+  if (ration?.itemUuid) {
+    const item = await fromUuid?.(ration.itemUuid);
+    if (item) {
+      await item.update({ "system.pips.value": ration.before });
+    }
+  }
+
+  // Mark used to prevent double undo/redo loops
+  data.used = true;
+  await setRestUndoData(message, data);
+
+  await ChatMessage.create({
+    content: game.i18n.format?.("MRQOL.Rest.Undo.Chat", { name: actor.name }) ??
+      `${actor.name}: Rest undone.`,
+    speaker: ChatMessage.getSpeaker({ alias: game.user?.name ?? "MRQOL" })
+  });
+
+  return true;
+}
+
+function renderRestUndoButton(message, root) {
+  const data = getRestUndoData(message);
+  if (!data) return;
+
+  const container = root.querySelector(".mrqol-rest-log .mrqol-rest-actions");
+  if (!container) return;
+
+  // Avoid duplicates
+  if (container.querySelector("button.mrqol-undo-rest")) return;
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "mrqol-undo-rest";
+  btn.innerHTML = `<i class="fa-solid fa-rotate-left"></i> ${_i18n("MRQOL.Rest.Undo.Button", "Undo Rest")}`;
+  btn.disabled = !!data.used;
+
+  btn.addEventListener("click", async (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    try {
+      const ok = await tryUndoRestFromMessage(message);
+      btn.disabled = true;
+      if (!ok) _notify(_i18n("MRQOL.Rest.Undo.Failed", "Cannot undo rest."));
+    } catch (err) {
+      console.error("MRQOL | Failed to undo rest", err);
+      _notify(_i18n("MRQOL.Rest.Undo.Failed", "Cannot undo rest."));
+    }
+  });
+
+  container.appendChild(btn);
+}
+
 /**
  * Add rest buttons to actor sheet header (GM only).
  * Hook: getActorSheetHeaderButtons
@@ -104,28 +232,14 @@ function addRestButtons(sheet, buttons) {
   if (!actor) return;
 
   // Avoid duplicates if sheet re-renders
-  if (buttons.some((b) => b?.class?.includes("mrqol-rest-"))) return;
+  if (buttons.some((b) => b?.class?.includes("mrqol-rest"))) return;
 
-  buttons.unshift(
-    {
-      label: _i18n("MRQOL.Rest.Button.Short", "Short Rest"),
-      class: "mrqol-rest-short",
-      icon: "fas fa-mug-hot",
-      onclick: () => applyShortRest(actor)
-    },
-    {
-      label: _i18n("MRQOL.Rest.Button.Long", "Long Rest"),
-      class: "mrqol-rest-long",
-      icon: "fas fa-campground",
-      onclick: () => applyLongRest(actor)
-    },
-    {
-      label: _i18n("MRQOL.Rest.Button.Full", "Full Rest"),
-      class: "mrqol-rest-full",
-      icon: "fas fa-bed",
-      onclick: () => applyFullRest(actor)
-    }
-  );
+  buttons.unshift({
+    label: _i18n("MRQOL.Rest.Button.Rest", "Rest"),
+    class: "mrqol-rest",
+    icon: "fas fa-bed",
+    onclick: () => openRestDialog(actor)
+  });
 }
 
 /** @returns {{hpValue:number,hpMax:number}} */
@@ -148,21 +262,129 @@ function _readStats(actor) {
   return { str, dex, wil, strMax, dexMax, wilMax };
 }
 
+function _stripHtml(html) {
+  return String(html ?? "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Try to find a "Rations" item on the actor and mark +1 usage (pips.value + 1).
+ * Heuristic: name contains ration/rations/ración/raciones AND has pips.
+ * @returns {Promise<null|{ itemUuid:string, before:number, after:number, name:string }>}
+ */
+async function consumeOneRation(actor) {
+  const items = actor?.items ?? [];
+  const rx = /(ration|rations|ración|raciones)/i;
+
+  const candidate = items.find((it) => {
+    if (!it) return false;
+    if (!rx.test(String(it.name ?? ""))) return false;
+    const max = Number(foundry.utils.getProperty(it, "system.pips.max")) || 0;
+    const val = Number(foundry.utils.getProperty(it, "system.pips.value")) || 0;
+    return max > 0 && val < max;
+  });
+
+  if (!candidate) return null;
+
+  const before = Number(foundry.utils.getProperty(candidate, "system.pips.value")) || 0;
+  const after = before + 1;
+
+  await candidate.update({ "system.pips.value": after });
+
+  return {
+    itemUuid: candidate.uuid,
+    before,
+    after,
+    name: candidate.name ?? "Rations"
+  };
+}
+
+async function openRestDialog(actor) {
+  const title = _i18n("MRQOL.Rest.Dialog.Title", "Rest");
+  const shortLabel = _i18n("MRQOL.Rest.Dialog.Short.Label", "Short Rest");
+  const longLabel = _i18n("MRQOL.Rest.Dialog.Long.Label", "Long Rest");
+  const fullLabel = _i18n("MRQOL.Rest.Dialog.Full.Label", "Full Rest");
+
+  const shortDesc = _i18n(
+    "MRQOL.Rest.Dialog.Short.Desc",
+    "Recover 1d6+1 HP (up to max)."
+  );
+  const longDesc = _i18n(
+    "MRQOL.Rest.Dialog.Long.Desc",
+    "Restore HP to max. If HP is already full, restore 1d6 to one attribute instead. Consumes 1 use of Rations."
+  );
+  const fullDesc = _i18n(
+    "MRQOL.Rest.Dialog.Full.Desc",
+    "Restore HP and all attributes to their maximum."
+  );
+
+  const content = `
+    <div class="mrqol-rest-dialog">
+      <p style="margin:0 0 .5rem 0;">${_i18n(
+        "MRQOL.Rest.Dialog.Help",
+        "Choose the type of rest to apply:"
+      )}</p>
+
+      <div style="display:flex; flex-direction:column; gap:.5rem;">
+        <div>
+          <b>${shortLabel}</b>
+          <div style="opacity:.85;">${shortDesc}</div>
+        </div>
+        <div>
+          <b>${longLabel}</b>
+          <div style="opacity:.85;">${longDesc}</div>
+        </div>
+        <div>
+          <b>${fullLabel}</b>
+          <div style="opacity:.85;">${fullDesc}</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const choice = await new Promise((resolve) => {
+    new Dialog({
+      title,
+      content,
+      buttons: {
+        short: { label: shortLabel, callback: () => resolve("short") },
+        long: { label: longLabel, callback: () => resolve("long") },
+        full: { label: fullLabel, callback: () => resolve("full") },
+        cancel: { label: _i18n("MRQOL.Cancel", "Cancel"), callback: () => resolve(null) }
+      },
+      default: "short",
+      close: () => resolve(null)
+    }).render(true);
+  });
+
+  if (!choice) return;
+
+  if (choice === "short") return applyShortRest(actor);
+  if (choice === "long") return applyLongRest(actor, { consumeRations: true });
+  if (choice === "full") return applyFullRest(actor);
+}
+
 async function applyShortRest(actor) {
   const { hpValue, hpMax } = _readHP(actor);
-  const heal = _rollD6Plus1();
+  const r = await _rollToChat(actor, "1d6 + 1", _i18n("MRQOL.Rest.Chat.Short", "Short Rest"));
+  const heal = Number(r.total) || 0;
   const newHP = Math.min(hpMax, hpValue + heal);
 
   await actor.update({ "system.health.value": newHP });
 
-  await postAutomationLog(actor, _i18n("MRQOL.Rest.Chat.Short", "Short Rest"), [
+    await postRestLogWithUndo(actor, _i18n("MRQOL.Rest.Chat.Short", "Short Rest"), [
     `${actor.name}: HP ${hpValue} → ${newHP} (+${newHP - hpValue})`
-  ]);
+  ], {
+    actorUuid: actor.uuid,
+    actorBefore: { "system.health.value": hpValue }
+  });
 
   _notify(`${actor.name}: ${_i18n("MRQOL.Rest.Chat.Short", "Short Rest")}`);
 }
 
-async function applyLongRest(actor) {
+async function applyLongRest(actor, { consumeRations = false } = {}) {
   const { hpValue, hpMax } = _readHP(actor);
   const stats = _readStats(actor);
 
@@ -170,9 +392,14 @@ async function applyLongRest(actor) {
   // If HP already full, restore d6 to ONE attribute score (choose).
   if (hpValue < hpMax) {
     await actor.update({ "system.health.value": hpMax });
-    await postAutomationLog(actor, _i18n("MRQOL.Rest.Chat.Long", "Long Rest"), [
-      `${actor.name}: HP ${hpValue} → ${hpMax}`
-    ]);
+    const ration = consumeRations ? await consumeOneRation(actor) : null;
+        const lines = [`${actor.name}: HP ${hpValue} → ${hpMax}`];
+    if (ration) lines.push(`${_i18n("MRQOL.Rest.Chat.Rations", "Rations")}: ${ration.name} (${ration.before} → ${ration.after})`);
+    await postRestLogWithUndo(actor, _i18n("MRQOL.Rest.Chat.Long", "Long Rest"), lines, {
+      actorUuid: actor.uuid,
+      actorBefore: { "system.health.value": hpValue },
+      ration
+    });
     _notify(`${actor.name}: ${_i18n("MRQOL.Rest.Chat.Long", "Long Rest")}`);
     return;
   }
@@ -194,7 +421,8 @@ async function applyLongRest(actor) {
 
   if (!pick) return;
 
-  const amt = _rollD6();
+  const r = await _rollToChat(actor, "1d6", _i18n("MRQOL.Rest.Chat.Long", "Long Rest"));
+  const amt = Number(r.total) || 0;
   const path = `system.stats.${pick}.value`;
   const before = Number(foundry.utils.getProperty(actor, path)) || 0;
   const maxPath = `system.stats.${pick}.max`;
@@ -202,11 +430,21 @@ async function applyLongRest(actor) {
   const after = Math.min(max, before + amt);
 
   await actor.update({ [path]: after });
+  const ration = consumeRations ? await consumeOneRation(actor) : null;
 
-  await postAutomationLog(actor, _i18n("MRQOL.Rest.Chat.Long", "Long Rest"), [
+    const lines = [
     `${actor.name}: HP already full (${hpMax})`,
     `${pick.toUpperCase()} ${before} → ${after} (+${after - before})`
-  ]);
+  ];
+  if (ration) lines.push(`${_i18n("MRQOL.Rest.Chat.Rations", "Rations")}: ${ration.name} (${ration.before} → ${ration.after})`);
+
+  await postRestLogWithUndo(actor, _i18n("MRQOL.Rest.Chat.Long", "Long Rest"), lines, {
+    actorUuid: actor.uuid,
+    actorBefore: {
+      [path]: before
+    },
+    ration
+  });
 
   _notify(`${actor.name}: ${_i18n("MRQOL.Rest.Chat.Long", "Long Rest")}`);
 }
@@ -224,12 +462,20 @@ async function applyFullRest(actor) {
 
   await actor.update(update);
 
-  await postAutomationLog(actor, _i18n("MRQOL.Rest.Chat.Full", "Full Rest"), [
+    await postRestLogWithUndo(actor, _i18n("MRQOL.Rest.Chat.Full", "Full Rest"), [
     `${actor.name}: HP ${hpValue} → ${hpMax}`,
     `STR ${str} → ${strMax}`,
     `DEX ${dex} → ${dexMax}`,
     `WIL ${wil} → ${wilMax}`
-  ]);
+  ], {
+    actorUuid: actor.uuid,
+    actorBefore: {
+      "system.health.value": hpValue,
+      "system.stats.strength.value": str,
+      "system.stats.dexterity.value": dex,
+      "system.stats.will.value": wil
+    }
+  });
 
   _notify(`${actor.name}: ${_i18n("MRQOL.Rest.Chat.Full", "Full Rest")}`);
 }
@@ -323,7 +569,8 @@ async function applyCombatWear(combat) {
         continue;
       }
 
-      const roll = _rollD6();
+      const r = await _rollToChat(actor, "1d6", _i18n("MRQOL.Wear.Chat", "Combat Wear"));
+      const roll = Number(r.total) || 0;
       if (roll >= 4) {
         const did = await _markOneUsage(it);
         if (did) lines.push(`${it.name}: 1d6=${roll} → +1 usage`);
@@ -744,6 +991,191 @@ function getSingleTarget() {
   return targets[0] ?? null;
 }
 
+/* -------------------------------------------- */
+/* Weapon must be equipped to roll              */
+/* -------------------------------------------- */
+
+/**
+ * Best-effort: resolve a weapon item from rollWeapon args.
+ * Mausritter system usually passes either an Item, an itemId, or an object with an _id/id.
+ * @param {Actor} actor
+ * @param {any[]} args
+ * @returns {Item|null}
+ */
+function resolveWeaponFromArgs(actor, args) {
+  if (!actor) return null;
+
+  const tryGetById = (id) => (typeof id === "string" ? actor.items?.get(id) ?? null : null);
+
+  // Walk any value looking for an item id
+  const findIdDeep = (v) => {
+    if (!v) return null;
+
+    // Direct Item-like
+    if (v?.documentName === "Item" || v?.type === "weapon") return v;
+
+    // Direct id
+    if (typeof v === "string") return tryGetById(v);
+
+    // Common object shapes
+    const id = v?._id ?? v?.id ?? v?.itemId ?? v?.item?.id ?? v?.item?._id;
+    const byId = tryGetById(id);
+    if (byId) return byId;
+
+    // MouseEvent / HTMLElement dataset (very common)
+    const ds =
+      v?.currentTarget?.dataset ??
+      v?.target?.dataset ??
+      v?.originalEvent?.currentTarget?.dataset ??
+      v?.originalEvent?.target?.dataset;
+
+    const dsId =
+      ds?.itemId ?? ds?._id ?? ds?.id ?? ds?.documentId ?? ds?.uuid ?? null;
+
+    const byDs = tryGetById(dsId);
+    if (byDs) return byDs;
+
+    // If an object, scan a few shallow fields (avoid infinite recursion)
+    if (typeof v === "object") {
+      const keys = ["item", "data", "options", "context", "document", "source"];
+      for (const k of keys) {
+        const hit = findIdDeep(v[k]);
+        if (hit) return hit;
+      }
+    }
+
+    return null;
+  };
+
+  // Scan all args, not just args[0]
+  for (const a of args ?? []) {
+    const hit = findIdDeep(a);
+    if (hit?.documentName === "Item") return hit;
+  }
+
+  return null;
+}
+
+/**
+ * Determine if an item is ready to be used (rolled) based on:
+ * 1) MRQOL flag if present
+ * 2) Layout zone fallback rules
+ *
+ * Rules you requested:
+ * - Weapons:
+ *   - character: only usable if in Carried (NOT Pack, NOT Worn)
+ *   - hireling/creature: usable if in Carried or Attack (NOT Pack)
+ * - Spells:
+ *   - character: only usable if in Carried
+ * @param {Actor} actor
+ * @param {Item} item
+ * @returns {boolean}
+ */
+function isItemReadyToUse(actor, item) {
+  if (!actor || !item) return true;
+
+  // Prefer an explicit MRQOL flag (tie to Equip/Unequip)
+  const flag = item.getFlag(MODULE_ID, "equipped");
+  if (typeof flag === "boolean") return flag;
+
+  const layout = item.getFlag(MODULE_ID, "layout");
+  const zone = layout?.zone;
+
+  // If we cannot determine zone, be conservative
+  if (!zone) return false;
+
+  // Spells: only Carried
+  if (item.type === "spell") return zone === "carried";
+
+  // Weapons
+  if (item.type === "weapon") {
+    if (actor.type === "character") return zone === "carried";
+    // hireling / creature
+    return zone === "carried" || zone === "attack";
+  }
+
+  return true;
+}
+
+function onRenderActorSheetForWeaponGate(app, html) {
+  // Only when automation is enabled
+  if (!isFeatureEnabled()) return;
+
+  const root = html instanceof HTMLElement ? html : html?.[0];
+  if (!(root instanceof HTMLElement)) return;
+
+  const actor = app?.actor;
+  if (!actor) return;
+
+  // Delegate: weapon roll buttons / weapon rows typically have data-item-id
+  // We intercept clicks that would trigger a weapon roll.
+  root.addEventListener(
+    "click",
+    (ev) => {
+      const el = ev.target?.closest?.("[data-item-id]");
+      if (!(el instanceof HTMLElement)) return;
+
+      // Heuristic: only gate when the clicked element looks like a weapon roll control
+      // Mausritter sheets commonly use classes like "roll", "roll-weapon", etc.
+      const cls = String(ev.target?.className ?? "");
+      const looksLikeRoll =
+        cls.includes("roll") ||
+        el.classList.contains("roll") ||
+        el.classList.contains("roll-weapon") ||
+        el.dataset.action === "roll" ||
+        el.dataset.action === "rollWeapon";
+
+      if (!looksLikeRoll) return;
+
+      const itemId = el.dataset.itemId;
+      if (!itemId) return;
+
+      const item = actor.items.get(itemId);
+      if (!item) return;
+
+      // gate only these
+      if (item.type !== "weapon" && item.type !== "spell") return;
+
+      const ok = isItemReadyToUse(actor, item);
+      if (!ok) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      warn(item.type === "spell"
+        ? "MRQOL.Automation.Item.MustReadySpell"
+        : "MRQOL.Automation.Item.MustReadyWeapon");
+    }
+    },
+    true // capture: run before sheet handlers
+  );
+}
+
+/**
+ * Wrap Actor.rollWeapon so a weapon must be equipped (not in Pack; creatures must be in Attack).
+ * @param {Function} original
+ * @returns {Function}
+ */
+function wrapRollWeapon(original) {
+  return async function mrqolRollWeaponWrapper(...args) {
+    try {
+      const actor = this;
+      const weapon = resolveWeaponFromArgs(actor, args);
+
+      // Only enforce for weapon items
+      if (weapon?.type === "weapon") {
+        const ok = isWeaponEquippedForRoll(actor, weapon);
+        if (!ok) {
+          warn("MRQOL.Automation.Weapon.MustEquip");
+          return null;
+        }
+      }
+    } catch (err) {
+      console.warn("MRQOL | rollWeapon equipped-check failed (non-fatal)", err);
+    }
+
+    return original.apply(this, args);
+  };
+}
+
 /**
  * Warn in a consistent way.
  * @param {string} key
@@ -1083,7 +1515,8 @@ async function resolveStrInjurySave(message, target, strValue) {
 
   await message.setFlag(MODULE_ID, "automation.strInjuryProcessed", true);
 
-  const roll = await (new Roll("1d20")).evaluateSync();
+  const roll = new Roll("1d20");
+  await roll.evaluate({ async: true });
   const total = roll.total ?? 0;
   const success = total <= (Number(strValue) || 0);
 
@@ -1283,6 +1716,12 @@ async function tryUndoDamageFromMessage(message) {
 }
 
 function onRenderChatMessage(message, html) {
+  // Rest undo button (independent from damage automation)
+  {
+    const root = html instanceof HTMLElement ? html : html?.[0];
+    if (root instanceof HTMLElement) renderRestUndoButton(message, root);
+  }
+
   if (!isFeatureEnabled()) return;
   if (!isButtonEnabled()) return;
 
@@ -1474,6 +1913,28 @@ export const AutomationPack = {
   init() {
     if (!isFeatureEnabled()) return;
 
+    // Require equipped weapon to roll (wrap system rollWeapon)
+    try {
+    const ActorCls = CONFIG?.Actor?.documentClass;
+    const proto = ActorCls?.prototype;
+
+    if (proto?.rollWeapon) {
+      // Avoid double-wrapping
+      if (!proto.rollWeapon.__mrqolWrapped) {
+        const original = proto.rollWeapon;
+        const wrapped = wrapRollWeapon(original);
+
+        // mark + keep reference
+        wrapped.__mrqolWrapped = true;
+        wrapped.__mrqolOriginal = original;
+
+        proto.rollWeapon = wrapped;
+      }
+    }
+    } catch (err) {
+      console.error("MRQOL | Failed to wrap rollWeapon", err);
+    }
+
     Hooks.on("renderChatMessageHTML", onRenderChatMessage);
     Hooks.on("createChatMessage", onCreateChatMessage);
 	  Hooks.on("updateActor", onUpdateActor);
@@ -1486,6 +1947,7 @@ export const AutomationPack = {
       if (change?.active === false) applyCombatWear(combat).catch(console.error);
     });
     Hooks.on("targetToken", refreshAllDamageButtons);
+    Hooks.on("renderActorSheet", onRenderActorSheetForWeaponGate);
   },
   ready() {}
 };

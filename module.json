@@ -13,6 +13,9 @@
   "relationships": {
     "requires": [
       { "id": "mausritter", "type": "system" }
+    ],
+    "recommends": [
+      { "id": "babele", "type": "module" }
     ]
   },
   "esmodules": [

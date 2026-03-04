@@ -1,0 +1,155 @@
+{
+	"label": "Criaturas",
+	"entries": {
+    "5o4Cbd94vF3W3xTL": {
+      "name": "Fantasma",
+      "tokenName": "Fantasma",
+      "items": {
+        "8WQENJawSZFWvV2P": {
+          "name": "Incorpóreo"
+        },
+        "s4jbNbC8xMElrSgb": {
+          "name": "Toque Gélido"
+        },
+        "jMmGnBW17BsKwpUz": {
+          "name": "Poder Fantasmal"
+        }
+      },
+      "disposition": "liberarse del dolor que los ata al reino mortal."
+    },
+    "98YntblP94LJm0dG": {
+      "name": "Rata",
+      "tokenName": "Rata",
+      "items": {
+        "NvrH1rgaissh908q": {
+          "name": "Machete"
+        }
+      },
+      "disposition": "riquezas fáciles, robar a los débiles."
+    },
+    "9p207ehzfo0grc7p": {
+      "name": "Araña",
+      "tokenName": "Araña",
+      "items": {
+        "vPvEhQIzdpSM7s2G": {
+          "name": "Mordisco Venenoso"
+        },
+        "lVsflwBBBLLKpsHD": {
+          "name": "Armadura Natural"
+        }
+      },
+      "disposition": "alimentar a sus crías."
+    },
+    "JxAGt6xR7m3yjumR": {
+      "name": "Serpiente",
+      "tokenName": "Serpiente",
+      "items": {
+        "4xEFiwZohWpdKISm": {
+          "name": "Armadura Natural"
+        },
+        "G29TqtFZY0ej7rW1": {
+          "name": "Mordisco de Serpiente"
+        }
+      },
+      "disposition": "dormir sin ser molestadas."
+    },
+    "ObtzkZyQJ9s9W5GE": {
+      "name": "Gato",
+      "tokenName": "Gato",
+      "items": {
+        "XWFQE7gPrx1KuQLO": {
+          "name": "Mordisco"
+        },
+        "oprgYLAnKX0hvi4F": {
+          "name": "Armadura Natural"
+        },
+        "6oSi8leQqFPMYhoG": {
+          "name": "Cola"
+        },
+        "2j0srpjGlwfNa4ZN": {
+          "name": "Escama de Banda de Guerra"
+        }
+      },
+      "disposition": "ser servidos. Si un ratón le jura lealtad y le soborna, puede permitirle vivir."
+    },
+    "TyRERzdoQMmoDcG9": {
+      "name": "Ratón",
+      "tokenName": "Ratón",
+      "disposition": "sentirse a salvo."
+    },
+    "YEWobiwJoInGU4b3": {
+      "name": "Hada",
+      "tokenName": "Hada",
+      "items": {
+        "8YVSz4s3ZuQS7htn": {
+          "name": "Estoque de plata"
+        },
+        "PF15GQpfbcXL78Lt": {
+          "name": "Conoce 1 hechizo"
+        }
+      },
+      "disposition": "hacer avanzar los extraños planes de la reina de las hadas."
+    },
+    "iUahsB2j7BLHVo1Z": {
+      "name": "Búho",
+      "tokenName": "Búho",
+      "items": {
+        "9SnHWylyuSHP5y4H": {
+          "name": "Armadura Natural"
+        },
+        "azoX3yTPIf2QWG3A": {
+          "name": "Mordisco"
+        }
+      },
+      "disposition": "coleccionar conocimiento extraño y hechizos."
+    },
+    "lWWcOyD8b2fNnI9n": {
+      "name": "Rana",
+      "tokenName": "Rana",
+      "items": {
+        "KhJkd5aBlKlqi6s5": {
+          "name": "Lanza de Rana"
+        },
+        "nS6MGlQXFn5Ads8y": {
+          "name": "Armadura Pesada"
+        },
+        "Qo8IFOXarja3jrs1": {
+          "name": "Lengua de Rana"
+        },
+        "bBYZqRwvX205je3t": {
+          "name": "Daño Crítico"
+        }
+      },
+      "disposition": "completar su misión cortésmente."
+    },
+    "mzrkpE9IFxzE6XkA": {
+      "name": "Cuervo",
+      "tokenName": "Cuervo",
+      "items": {
+        "Z3KVqNMubTtzMArf": {
+          "name": "Armadura Natural"
+        },
+        "DtZDTewuJ8khoVfN": {
+          "name": "Picotazo"
+        },
+        "wnykvJUFpCfljzds": {
+          "name": "Canto del Cuervo"
+        }
+      },
+      "disposition": "proteger los lugares sagrados y secretos de aquellos que les harían daño."
+    },
+    "vO2MaHWJBn4f8ijy": {
+      "name": "Ciempies",
+      "tokenName": "Ciempies",
+      "items": {
+        "2pJmWhaGYeT009im": {
+          "name": "Armadura Natural"
+        },
+        "evPriKLOzTAze1JS": {
+          "name": "Mordisco Venenoso"
+        }
+      },
+      "disposition": "merodear y devorar."
+    }
+  }
+}

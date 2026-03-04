@@ -1,0 +1,13 @@
+{
+	"label": "Armaduras",
+	"entries": {
+		"Light Armor": {
+			"name": "Armadura Ligera",
+			"description": ""
+		},
+		"Heavy Armor": {
+			"name": "Armadura Pesada",
+			"description": ""
+		}
+	}
+}

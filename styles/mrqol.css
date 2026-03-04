@@ -10,6 +10,16 @@
   flex: 1;
 }
 
+/* -------------------------------------------- */
+/* Game Paused: mouse icon (minimal override)   */
+/* -------------------------------------------- */
+
+/* Keep core layout untouched. Optional tint tweak only: */
+#pause img[src*="modules/mausritter-qol/assets/icons/mouse-icon.svg"] {
+  opacity: 0.65;
+  filter: grayscale(1) brightness(0.72) contrast(0.95);
+}
+
 /* ========================================================= */
 /* ACTOR SHEET INVENTORY (real Mausritter #drag-area)         */
 /* ========================================================= */
@@ -74,6 +84,33 @@
   gap: 6px;
   pointer-events: auto; /* allow clicks */
 }
+/* ========================================================= */
+/* ITEM CARD HEADER/TITLE: prevent overlap with top-right UI */
+/* ========================================================= */
+
+/* Ensure the absolute toggles are anchored to the header box */
+#drag-area .item-card .item-card-header,
+#mrqol-ov-drag-area .item-card .item-card-header {
+  position: relative;
+}
+
+/* Make the title a shrinkable flex item and reserve space for toggles */
+#drag-area .item-card .item-card-title,
+#mrqol-ov-drag-area .item-card .item-card-title {
+  flex: 1 1 auto;
+  min-width: 0; /* CRITICAL: allows flex item to shrink instead of overlapping */
+  padding-right: 32px; /* safe area for the toggle button (adjust 28-40px) */
+
+  /* 2-line clamp */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+
+  word-break: break-word;
+}
 
 #drag-area .item-card .mrqol-card-toggles .mrqol-toggle {
   display: inline-flex;
@@ -83,14 +120,26 @@
   width: 15px;
   height: 15px;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.35);
+
+  /* IMPORTANT: keep the button itself opaque so title text never shows through */
+  background: rgba(255, 255, 255, 0.85);
+
   pointer-events: auto; /* buttons clickable */
-  opacity: 0.35;
 }
 
 #drag-area .item-card .mrqol-card-toggles .mrqol-toggle.mrqol-active {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+/* Inactive: dim only the icon content */
+#drag-area .item-card .mrqol-card-toggles .mrqol-toggle:not(.mrqol-active) i,
+#drag-area .item-card .mrqol-card-toggles .mrqol-toggle:not(.mrqol-active) .mrqol-equip-mouse {
+  opacity: 0.35;
+}
+
+#drag-area .item-card .mrqol-card-toggles .mrqol-toggle.mrqol-active i,
+#drag-area .item-card .mrqol-card-toggles .mrqol-toggle.mrqol-active .mrqol-equip-mouse {
   opacity: 1;
-  background: rgba(255, 255, 255, 0.75);
 }
 
 #drag-area .item-card .mrqol-card-toggles .mrqol-toggle i {
@@ -281,16 +330,117 @@
   width: 15px;
   height: 15px;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.35);
-  pointer-events: auto;
-  opacity: 0.35;
+
+  /* IMPORTANT: keep the button itself opaque so title text never shows through */
+  background: rgba(255, 255, 255, 0.85);
+
+  pointer-events: auto; /* buttons clickable */
 }
 
 #mrqol-ov-drag-area .item-card .mrqol-card-toggles .mrqol-toggle.mrqol-active {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+/* Inactive: dim only the icon content */
+#mrqol-ov-drag-area .item-card .mrqol-card-toggles .mrqol-toggle:not(.mrqol-active) i,
+#mrqol-ov-drag-area .item-card .mrqol-card-toggles .mrqol-toggle:not(.mrqol-active) .mrqol-equip-mouse {
+  opacity: 0.35;
+}
+
+#mrqol-ov-drag-area .item-card .mrqol-card-toggles .mrqol-toggle.mrqol-active i,
+#mrqol-ov-drag-area .item-card .mrqol-card-toggles .mrqol-toggle.mrqol-active .mrqol-equip-mouse {
   opacity: 1;
-  background: rgba(255, 255, 255, 0.75);
 }
 
 #mrqol-ov-drag-area .item-card .mrqol-card-toggles .mrqol-toggle i {
   pointer-events: none;
+}
+
+/* ========================================================= */
+/* Character Creator (ApplicationV2)                          */
+/* ========================================================= */
+
+.mrqol-character-creator .mrqol-cc {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mrqol-character-creator .mrqol-cc__header {
+  border-bottom: 1px solid var(--color-border-light-primary, rgba(255, 255, 255, 0.2));
+  padding-bottom: 0.5rem;
+}
+
+.mrqol-character-creator .mrqol-cc__title {
+  margin: 0;
+}
+
+.mrqol-character-creator .mrqol-cc__subtitle {
+  margin: 0.25rem 0 0;
+  opacity: 0.8;
+}
+
+.mrqol-character-creator .mrqol-cc__steps ol {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.mrqol-character-creator .mrqol-cc__steps li.is-active {
+  font-weight: 600;
+}
+
+.mrqol-character-creator .mrqol-cc__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mrqol-character-creator .mrqol-cc__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.mrqol-character-creator .mrqol-cc__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-top: 1px solid var(--color-border-light-primary, rgba(255, 255, 255, 0.2));
+  padding-top: 0.5rem;
+}
+
+.mrqol-character-creator .mrqol-cc__nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.mrqol-character-creator .mrqol-cc__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mrqol-character-creator .mrqol-cc__abilities {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.mrqol-character-creator .mrqol-cc__swap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mrqol-character-creator .mrqol-cc__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.mrqol-character-creator .mrqol-cc__results p {
+  margin: 0.25rem 0;
+}
+.mrqol-cc-summary {
+  line-height: 1.3;
 }

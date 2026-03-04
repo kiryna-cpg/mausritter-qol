@@ -1,6 +1,7 @@
 import { registerSettings } from "./settings.js";
 import { PackManager } from "./framework/packs.js";
 import { MODULE_ID } from "./framework/paths.js";
+import { registerBabeleTranslations } from "./babele.js";
 
 // Helper: dynamic import with error isolation so settings always load
 async function safeImport(path) {
@@ -16,6 +17,13 @@ async function safeImport(path) {
 
 Hooks.once("init", async () => {
   console.log("MRQOL | init");
+
+  // 0) Babele compendium translations (optional dependency)
+  try {
+    registerBabeleTranslations();
+  } catch (err) {
+    console.warn("MRQOL | Failed to register Babele translations", err);
+  }
 
   // 1) Settings MUST register even if packs crash
   try {
@@ -44,31 +52,21 @@ Hooks.once("ready", () => {
   console.log("MRQOL | ready");
 
   // Game Paused: replace the default clockwork icon with mouse icon (keep spin)
-  const pauseIcon = `modules/${MODULE_ID}/assets/icons/mouse-icon.png`;
+  const pauseIcon = `modules/${MODULE_ID}/assets/icons/mouse-icon-paused.svg`;
 
   const applyPauseIcon = (root) => {
     try {
       const el = root instanceof HTMLElement ? root : root?.[0];
-      const img = el?.querySelector?.("img") ?? document.querySelector("#pause img");
+      const img = el?.querySelector?.("#pause img") ?? document.querySelector("#pause img");
       if (img) img.setAttribute("src", pauseIcon);
     } catch (err) {
       console.warn("MRQOL | Failed to apply pause icon to DOM", err);
     }
   };
 
-  // 1) Set config (affects future renders)
-  try {
-    CONFIG.ui = CONFIG.ui ?? {};
-    CONFIG.ui.pause = CONFIG.ui.pause ?? {};
-    // In some Foundry versions pause is an object with `icon`
-    if (typeof CONFIG.ui.pause === "object") CONFIG.ui.pause.icon = pauseIcon;
-  } catch (err) {
-    console.warn("MRQOL | Failed to set CONFIG.ui.pause.icon", err);
-  }
+  // Apply immediately (in case pause element already exists)
+  applyPauseIcon(document);
 
-  // 2) Enforce on render (prevents system/core from overriding)
+  // Enforce on render (prevents system/core from overriding)
   Hooks.on("renderPause", (_app, html) => applyPauseIcon(html));
-
-  // 3) If pause already in DOM, patch immediately
-  applyPauseIcon(document.querySelector("#pause"));
 });

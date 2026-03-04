@@ -1,6 +1,21 @@
 import { MODULE_ID } from "./framework/paths.js";
 
 export function registerSettings() {
+  // Client preference: default content language to apply via sheet button
+  game.settings.register(MODULE_ID, "i18nSync.preferredLang", {
+    name: "Content Language (default)",
+    hint: "Default language used by the Actor/Item 'Language' button to sync imported documents.",
+    scope: "client",
+    config: true,
+    type: String,
+    choices: {
+      world: "World language",
+      en: "English",
+      es: "Spanish"
+    },
+    default: "world"
+  });
+
   // Master toggles
   game.settings.register(MODULE_ID, "packs.core.enabled", {
     name: "Core Pack",
@@ -154,12 +169,40 @@ game.settings.register(MODULE_ID, "automation.strZero.houseRule.scope", {
 
   // Repairs
   game.settings.register(MODULE_ID, "core.repairs.enabled", {
-    name: "Repairs: Enable",
-    hint: "Adds repair buttons and applies Mausritter repair rules.",
+    name: game.i18n.localize("MRQOL.Settings.Repairs.Enabled.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Repairs.Enabled.Hint"),
     scope: "world",
     config: true,
     type: Boolean,
     default: true
+  });
+
+  game.settings.register(MODULE_ID, "core.repairs.rounding", {
+    name: game.i18n.localize("MRQOL.Settings.Repairs.Rounding.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Repairs.Rounding.Hint"),
+    scope: "world",
+    config: true,
+    type: String,
+    choices: {
+      round: game.i18n.localize("MRQOL.Settings.Repairs.Rounding.Choices.Round"),
+      floor: game.i18n.localize("MRQOL.Settings.Repairs.Rounding.Choices.Floor"),
+      ceil: game.i18n.localize("MRQOL.Settings.Repairs.Rounding.Choices.Ceil")
+    },
+    default: "round"
+  });
+
+    game.settings.register(MODULE_ID, "core.repairs.rounding", {
+    name: "Repairs: Rounding",
+    hint: "How to round the pip cost per repaired dot (10% of item cost).",
+    scope: "world",
+    config: true,
+    type: String,
+    choices: {
+      round: "Nearest",
+      floor: "Down",
+      ceil: "Up"
+    },
+    default: "round"
   });
 
   // Inventory layout / rules

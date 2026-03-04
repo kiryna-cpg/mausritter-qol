@@ -1,0 +1,29 @@
+{
+	"label": "Condiciones",
+	"entries": {
+		"Exhausted": {
+			"name": "Cansado",
+			"description": ""
+		},
+		"Drained": {
+			"name": "Loco",
+			"description": ""
+		},
+		"Frightened": {
+			"name": "Asustado",
+			"description": ""
+		},
+		"Hungry": {
+			"name": "Hambriento",
+			"description": ""
+		},
+		"Injured": {
+			"name": "Herido",
+			"description": ""
+		},
+		"Custom": {
+			"name": "Personalizado",
+			"description": ""
+		}
+	}
+}

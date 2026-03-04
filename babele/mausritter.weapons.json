@@ -1,0 +1,61 @@
+{
+	"label": "Armas",
+	"entries": {
+		"Axe": {
+			"name": "Hacha",
+			"description": ""
+		},
+		"Bow": {
+			"name": "Arco",
+			"description": ""
+		},
+		"Improvised": {
+			"name": "Improvisada",
+			"description": ""
+		},
+		"Cleaver": {
+			"name": "Machete",
+			"description": ""
+		},
+		"Hookarm": {
+			"name": "Anzuelanza",
+			"description": ""
+		},
+		"Pick": {
+			"name": "Pico",
+			"description": ""
+		},
+		"Hammer": {
+			"name": "Martillo",
+			"description": ""
+		},
+		"Sling": {
+			"name": "Honda",
+			"description": ""
+		},
+		"Sword": {
+			"name": "Espada",
+			"description": ""
+		},
+		"Spear": {
+			"name": "Lanza",
+			"description": ""
+		},
+		"Needle": {
+			"name": "Aguja",
+			"description": ""
+		},
+		"Mace": {
+			"name": "Maza",
+			"description": ""
+		},
+		"Warhammer": {
+			"name": "Martillo de Guerra",
+			"description": ""
+		},
+		"Dagger": {
+			"name": "Daga",
+			"description": ""
+		}
+	}
+}

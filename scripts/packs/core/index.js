@@ -1,6 +1,8 @@
 import { PackManager } from "../../framework/packs.js";
 import { MODULE_ID } from "../../framework/paths.js";
 import { repairItem, getRepairQuote } from "./repairs.js";
+import { registerCharacterCreator } from "./character-creator/index.js";
+import { registerI18nSyncButtons } from "./i18n-sync.js";
 
 /* -------------------------------------------- */
 /* Repairs                                      */
@@ -2342,6 +2344,38 @@ function getCellById(map, id) {
   return map?.cells?.find((c) => c.id === id) ?? null;
 }
 
+export async function mrqolReorderInventoryForActorSheet(actor) {
+  const sheet = actor?.sheet;
+  if (!actor || !sheet) return;
+
+  // Wait for the specific sheet instance to render, then reorder using the rendered HTML root.
+  const rootEl = await new Promise((resolve) => {
+    const hookId = Hooks.once("renderActorSheet", (app, html) => {
+      // Make sure it's THIS actor's sheet
+      if (app !== sheet) return;
+
+      // html is jQuery in legacy sheets; html[0] is HTMLElement
+      const el = html?.[0] ?? html;
+      resolve(el);
+    });
+
+    // Trigger render (legacy sheets)
+    sheet.render(true);
+
+    // Safety: if something goes wrong and the hook never fires, resolve null after a tick.
+    Promise.resolve().then(() => {
+      // no-op: keep promise pending; we want the actual render hook if possible
+    });
+  });
+
+  if (!rootEl || typeof rootEl.querySelector !== "function") {
+    console.warn(`${MODULE_ID} | Reorder skipped: sheet root is not an HTMLElement.`, { rootEl, sheet });
+    return;
+  }
+
+  await reorderInventory(actor, rootEl);
+}
+
 async function reorderInventory(actor, root) {
   if (!actor || !root) return;
   if (!safeGetSetting("core.inventoryLayout.enabled", true)) return;
@@ -3190,6 +3224,11 @@ export const CorePack = {
     registerEncumberedStatusEffect();
     forceAdvantageDialogIfEncumbered();
     registerInventoryReactiveHooks();
+    // Character Creator (Actors Directory button + wizard)
+    registerCharacterCreator();
+
+    // I18n sync buttons (Actor/Item sheets)
+    registerI18nSyncButtons();    
 
         // Game Paused: replace the default clockwork icon with mouse icon (keep spin behavior)
     try {

@@ -1,0 +1,284 @@
+<section class="mrqol-cc">
+  <header class="mrqol-cc__header">
+    <h2 class="mrqol-cc__title">{{localize "MRQOL.CharacterCreator.Title"}}</h2>
+    <p class="mrqol-cc__subtitle">{{localize "MRQOL.CharacterCreator.Subtitle"}}</p>
+  </header>
+
+  <nav class="mrqol-cc__steps" aria-label="wizard steps">
+    <ol>
+      <li class="{{#if isStep1}}is-active{{/if}}">1. {{localize "MRQOL.CharacterCreator.Step.Abilities"}}</li>
+      <li class="{{#if isStep2}}is-active{{/if}}">2. {{localize "MRQOL.CharacterCreator.Step.Background"}}</li>
+      <li class="{{#if isStep3}}is-active{{/if}}">3. {{localize "MRQOL.CharacterCreator.Step.Gear"}}</li>
+    </ol>
+  </nav>
+
+  {{#if isStep1}}
+  <section class="mrqol-cc__panel">
+    <h3>{{localize "MRQOL.CharacterCreator.Step.Abilities"}}</h3>
+    <p class="hint">{{localize "MRQOL.CharacterCreator.Abilities.Hint"}}</p>
+
+    <div class="mrqol-cc__actions">
+      <button type="button" data-action="roll-abilities">
+        <i class="fa-solid fa-dice"></i> {{localize "MRQOL.CharacterCreator.Abilities.Roll"}}
+      </button>
+    </div>
+
+    <div class="mrqol-cc__abilities">
+      <div class="mrqol-cc__ability">
+        <strong>{{localize "MRQOL.CharacterCreator.Abilities.STR"}}</strong>:
+        <span>{{state.abilityTotals.str}}</span>
+        {{#if state.abilities.str}}
+          <small class="hint">
+            ({{state.abilities.str.results.[0]}}, {{state.abilities.str.results.[1]}}, {{state.abilities.str.results.[2]}} → {{state.abilities.str.kept.[0]}}+{{state.abilities.str.kept.[1]}})
+          </small>
+        {{/if}}
+      </div>
+
+      <div class="mrqol-cc__ability">
+        <strong>{{localize "MRQOL.CharacterCreator.Abilities.DEX"}}</strong>:
+        <span>{{state.abilityTotals.dex}}</span>
+        {{#if state.abilities.dex}}
+          <small class="hint">
+            ({{state.abilities.dex.results.[0]}}, {{state.abilities.dex.results.[1]}}, {{state.abilities.dex.results.[2]}} → {{state.abilities.dex.kept.[0]}}+{{state.abilities.dex.kept.[1]}})
+          </small>
+        {{/if}}
+      </div>
+
+      <div class="mrqol-cc__ability">
+        <strong>{{localize "MRQOL.CharacterCreator.Abilities.WIL"}}</strong>:
+        <span>{{state.abilityTotals.wil}}</span>
+        {{#if state.abilities.wil}}
+          <small class="hint">
+            ({{state.abilities.wil.results.[0]}}, {{state.abilities.wil.results.[1]}}, {{state.abilities.wil.results.[2]}} → {{state.abilities.wil.kept.[0]}}+{{state.abilities.wil.kept.[1]}})
+          </small>
+        {{/if}}
+      </div>
+    </div>
+
+    <hr />
+
+    <div class="mrqol-cc__swap">
+      <label>
+        {{localize "MRQOL.CharacterCreator.Abilities.Swap"}}
+        <select name="swapA" {{#if state.abilitiesSwapped}}disabled{{/if}}>
+          <option value="str"
+                  {{#if (eq state.swapA "str")}}selected{{/if}}
+                  {{#if (eq state.swapB "str")}}disabled{{/if}}>
+            {{localize "MRQOL.CharacterCreator.Abilities.STR"}}
+          </option>
+          <option value="dex"
+                  {{#if (eq state.swapA "dex")}}selected{{/if}}
+                  {{#if (eq state.swapB "dex")}}disabled{{/if}}>
+            {{localize "MRQOL.CharacterCreator.Abilities.DEX"}}
+          </option>
+          <option value="wil"
+                  {{#if (eq state.swapA "wil")}}selected{{/if}}
+                  {{#if (eq state.swapB "wil")}}disabled{{/if}}>
+            {{localize "MRQOL.CharacterCreator.Abilities.WIL"}}
+          </option>
+        </select>
+
+        <span style="margin:0 .25rem;">↔</span>
+
+        <select name="swapB" {{#if state.abilitiesSwapped}}disabled{{/if}}>
+          <option value="str"
+                  {{#if (eq state.swapB "str")}}selected{{/if}}
+                  {{#if (eq state.swapA "str")}}disabled{{/if}}>
+            {{localize "MRQOL.CharacterCreator.Abilities.STR"}}
+          </option>
+          <option value="dex"
+                  {{#if (eq state.swapB "dex")}}selected{{/if}}
+                  {{#if (eq state.swapA "dex")}}disabled{{/if}}>
+            {{localize "MRQOL.CharacterCreator.Abilities.DEX"}}
+          </option>
+          <option value="wil"
+                  {{#if (eq state.swapB "wil")}}selected{{/if}}
+                  {{#if (eq state.swapA "wil")}}disabled{{/if}}>
+            {{localize "MRQOL.CharacterCreator.Abilities.WIL"}}
+          </option>
+        </select>
+      </label>
+
+      <div class="mrqol-cc__actions">
+        <button type="button"
+                data-action="swap-abilities"
+                {{#unless abilitiesReady}}disabled{{/unless}}
+                {{#if state.abilitiesSwapped}}disabled{{/if}}>
+          <i class="fa-solid fa-right-left"></i> {{localize "MRQOL.CharacterCreator.Abilities.SwapButton"}}
+        </button>
+
+        <button type="button"
+                data-action="reset-abilities"
+                {{#unless abilitiesReady}}disabled{{/unless}}>
+          <i class="fa-solid fa-rotate-left"></i> {{localize "MRQOL.CharacterCreator.Abilities.ResetButton"}}
+        </button>
+      </div>
+
+      {{#if state.abilitiesSwapped}}
+        <p class="hint">{{localize "MRQOL.CharacterCreator.Abilities.SwapLockedHint"}}</p>
+      {{/if}}
+
+      {{#unless abilitiesReady}}
+        <p class="hint">{{localize "MRQOL.CharacterCreator.Abilities.RollFirstHint"}}</p>
+      {{/unless}}
+    </div>
+  </section>
+  {{/if}}
+
+{{#if isStep2}}
+  <section class="mrqol-cc__panel">
+    <h3>{{localize "MRQOL.CharacterCreator.Step.Background"}}</h3>
+    <p class="hint">{{localize "MRQOL.CharacterCreator.Background.Hint"}}</p>
+
+    <div class="mrqol-cc__actions">
+      <button type="button" data-action="roll-hp-pips">
+        <i class="fa-solid fa-dice"></i> {{localize "MRQOL.CharacterCreator.Background.Roll"}}
+      </button>
+    </div>
+
+    {{#if state.hp}}
+      <div class="mrqol-cc__results">
+        <p><strong>{{localize "MRQOL.CharacterCreator.Background.HP"}}</strong>: {{state.hp}}</p>
+        <p><strong>{{localize "MRQOL.CharacterCreator.Background.Pips"}}</strong>: {{state.pips}}</p>
+      </div>
+
+      {{#if state.background}}
+        <hr />
+        <div class="mrqol-cc__results">
+          <p>
+            <strong>{{localize "MRQOL.CharacterCreator.Background.Result"}}</strong>:
+            {{localize state.background.nameKey}}
+          </p>
+          <ul>
+            <li><strong>A</strong>: {{localize state.background.itemAKey}}</li>
+            <li><strong>B</strong>: {{localize state.background.itemBKey}}</li>
+          </ul>
+        </div>
+      {{/if}}
+
+      {{#if state.extraRule.enabled}}
+        <hr />
+        <div class="mrqol-cc__extra">
+          <p class="hint">
+            {{#if state.extraRule.takeBoth}}
+              {{localize "MRQOL.CharacterCreator.Background.ExtraRuleBoth"}}
+            {{else}}
+              {{localize "MRQOL.CharacterCreator.Background.ExtraRulePickOne"}}
+            {{/if}}
+          </p>
+
+          <div class="mrqol-cc__actions">
+            <button type="button" data-action="roll-extra-background">
+              <i class="fa-solid fa-dice"></i> {{localize "MRQOL.CharacterCreator.Background.RollExtra"}}
+            </button>
+          </div>
+
+          {{#if state.extraBackground}}
+            <div class="mrqol-cc__results">
+              <p>
+                <strong>{{localize "MRQOL.CharacterCreator.Background.ExtraResult"}}</strong>:
+                {{localize state.extraBackground.nameKey}}
+              </p>
+              <ul>
+                <li><strong>A</strong>: {{localize state.extraBackground.itemAKey}}</li>
+                <li><strong>B</strong>: {{localize state.extraBackground.itemBKey}}</li>
+              </ul>
+
+              {{#unless state.extraRule.takeBoth}}
+                <label>
+                  {{localize "MRQOL.CharacterCreator.Background.ExtraPick"}}
+                  <select name="extraPick">
+                    <option value="A" {{#if (eq state.extraPick "A")}}selected{{/if}}>A</option>
+                    <option value="B" {{#if (eq state.extraPick "B")}}selected{{/if}}>B</option>
+                  </select>
+                </label>
+              {{/unless}}
+            </div>
+          {{/if}}
+        </div>
+      {{/if}}
+    {{/if}}
+  </section>
+{{/if}}
+
+  {{#if isStep3}}
+  <section class="mrqol-cc__panel">
+    <h3>{{localize "MRQOL.CharacterCreator.Step.Gear"}}</h3>
+    <p class="hint">{{localize "MRQOL.CharacterCreator.Gear.Hint"}}</p>
+
+    <label class="mrqol-cc__field">
+      <span><strong>{{localize "MRQOL.CharacterCreator.Name"}}</strong></span>
+      <input type="text" name="ccName" value="{{state.name}}" placeholder="{{localize "MRQOL.CharacterCreator.DefaultName"}}" />
+    </label>
+
+    <label class="mrqol-cc__field">
+      <span><strong>{{localize "MRQOL.CharacterCreator.Weapon.Label"}}</strong></span>
+      <select name="weaponUuid">
+        <option value="">{{localize "MRQOL.CharacterCreator.Weapon.Choose"}}</option>
+        {{#each weaponOptions as |w|}}
+          <option value="{{w.uuid}}" {{#if (eq ../state.weaponUuid w.uuid)}}selected{{/if}}>{{w.name}}</option>
+        {{/each}}
+      </select>
+      <small class="hint">{{localize "MRQOL.CharacterCreator.Weapon.Help"}}</small>
+    </label>
+
+    <hr />
+
+    <div class="mrqol-cc__actions">
+      <button type="button" data-action="roll-details">
+        <i class="fa-solid fa-dice"></i> {{localize "MRQOL.CharacterCreator.Details.Roll"}}
+      </button>
+    </div>
+
+    {{#if state.details.resolved.birth}}
+      <div class="mrqol-cc__results">
+        <p><strong>{{localize "MRQOL.CharacterCreator.Details.BirthsignLabel"}}</strong>:
+          {{localize state.details.resolved.birth.nameKey}}
+          ({{localize state.details.resolved.birth.dispKey}})
+        </p>
+        <p><strong>{{localize "MRQOL.CharacterCreator.Details.Name"}}</strong>:
+        {{localize state.nameParts.keys.birthnameKey}} {{localize state.nameParts.keys.matrinameKey}}
+        </p>
+        <p><strong>{{localize "MRQOL.CharacterCreator.Details.Coat"}}</strong>:
+          {{localize state.details.resolved.color.nameKey}}, {{localize state.details.resolved.pattern.nameKey}}
+        </p>
+        <p><strong>{{localize "MRQOL.CharacterCreator.Details.PhysicalLabel"}}</strong>:
+          {{#if state.details.resolved.physicalKey}}
+            {{localize state.details.resolved.physicalKey}}
+          {{else}}
+            {{state.details.values.physicalD66}}
+          {{/if}}
+        </p>
+      </div>
+    {{/if}}
+
+    <hr />
+
+    <label class="mrqol-cc__checkbox">
+      <input type="checkbox" name="postToChat" {{#if state.postToChat}}checked{{/if}} />
+      {{localize "MRQOL.CharacterCreator.PostToChat"}}
+    </label>
+
+    <div class="mrqol-cc__actions">
+      <button type="button" data-action="create">
+        <i class="fa-solid fa-user-plus"></i> {{localize "MRQOL.CharacterCreator.Create"}}
+      </button>
+    </div>
+  </section>
+{{/if}}
+
+  <footer class="mrqol-cc__footer">
+    <div class="mrqol-cc__nav">
+      <button type="button" data-action="prev" {{#if isStep1}}disabled{{/if}}>
+        <i class="fa-solid fa-chevron-left"></i> {{localize "MRQOL.Common.Back"}}
+      </button>
+      <button type="button" data-action="next" {{#if isStep3}}disabled{{/if}}>
+        {{localize "MRQOL.Common.Next"}} <i class="fa-solid fa-chevron-right"></i>
+      </button>
+    </div>
+
+    <button type="button" class="mrqol-cc__close" data-action="close">
+      <i class="fa-solid fa-xmark"></i> {{localize "MRQOL.Common.Close"}}
+    </button>
+  </footer>
+</section>

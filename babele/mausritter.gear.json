@@ -1,0 +1,297 @@
+{
+	"label": "Equipo",
+	"entries": {
+		"Glue": {
+			"name": "Pegamento",
+			"description": ""
+		},
+		"Net": {
+			"name": "Red",
+			"description": ""
+		},
+		"Book": {
+			"name": "Libro",
+			"description": ""
+		},
+		"Whistle": {
+			"name": "Silbato",
+			"description": ""
+		},
+		"Compass": {
+			"name": "Brújula",
+			"description": ""
+		},
+		"Bottle of milk": {
+			"name": "Botella de leche",
+			"description": ""
+		},
+		"Electric Lantern": {
+			"name": "Linterna eléctrica",
+			"description": ""
+		},
+		"Bottle": {
+			"name": "Botella",
+			"description": ""
+		},
+		"Quill & ink": {
+			"name": "Pluma y tinta",
+			"description": ""
+		},
+		"Bedroll": {
+			"name": "Cama de campaña",
+			"description": ""
+		},
+		"Mirror": {
+			"name": "Espejo",
+			"description": ""
+		},
+		"Lantern": {
+			"name": "Linterna",
+			"description": ""
+		},
+		"Metal File": {
+			"name": "Lima de metal",
+			"description": ""
+		},
+		"Cheese": {
+			"name": "Queso",
+			"description": ""
+		},
+		"Rations": {
+			"name": "Raciones",
+			"description": ""
+		},
+		"Disguise kit": {
+			"name": "Kit de disfraz",
+			"description": ""
+		},
+		"Torches": {
+			"name": "Antorchas",
+			"description": ""
+		},
+		"Goggles": {
+			"name": "Gafas protectoras",
+			"description": ""
+		},
+		"Chalk": {
+			"name": "Tiza",
+			"description": ""
+		},
+		"Grease": {
+			"name": "Grasa",
+			"description": ""
+		},
+		"Wooden Spikes": {
+			"name": "Clavos de madera",
+			"description": ""
+		},
+		"Shovel": {
+			"name": "Pala",
+			"description": ""
+		},
+		"Lens": {
+			"name": "Lente",
+			"description": ""
+		},
+		"Cookpots": {
+			"name": "Menaje de Cocina",
+			"description": ""
+		},
+		"Sealed documents": {
+			"name": "Documentos sellados",
+			"description": ""
+		},
+		"Barrel of ale": {
+			"name": "Barril de cerveza",
+			"description": ""
+		},
+		"Shears": {
+			"name": "Tijeras",
+			"description": ""
+		},
+		"Necklace Chain": {
+			"name": "Collar de Cadenas",
+			"description": null
+		},
+		"Bucket": {
+			"name": "Cubo",
+			"description": ""
+		},
+		"Matchbox": {
+			"name": "Caja de cerillas",
+			"description": ""
+		},
+		"Mushrooms": {
+			"name": "Hongos",
+			"description": ""
+		},
+		"Wire, spool": {
+			"name": "Hilo, bobina",
+			"description": ""
+		},
+		"Treasure map": {
+			"name": "Mapa del tesoro",
+			"description": ""
+		},
+		"Bag of bat teeth": {
+			"name": "Bolsa de dientes de murciélago",
+			"description": ""
+		},
+		"Loaded dice": {
+			"name": "Juego de dados trucados",
+			"description": ""
+		},
+		"Moustrap": {
+			"name": "Trampa para ratones",
+			"description": ""
+		},
+		"Hireling: Loyal beetle": {
+			"name": "Ayudante: Escarabajo leal",
+			"description": ""
+		},
+		"Chisel": {
+			"name": "Cincel",
+			"description": ""
+		},
+		"Bellows": {
+			"name": "Fuelle",
+			"description": ""
+		},
+		"Spore Mask": {
+			"name": "Máscara antiesporas",
+			"description": ""
+		},
+		"Waterskin": {
+			"name": "Cantimplora",
+			"description": ""
+		},
+		"Stones": {
+			"name": "Piedras",
+			"description": ""
+		},
+		"Thread": {
+			"name": "Hilo",
+			"description": null
+		},
+		"Battery": {
+			"name": "Pila",
+			"description": ""
+		},
+		"Arrows": {
+			"name": "Flechas",
+			"description": ""
+		},
+		"Pip Purse": {
+			"name": "Bolsa de Pepitas",
+			"description": ""
+		},
+		"Lockpicks": {
+			"name": "Ganzúas",
+			"description": ""
+		},
+		"Incense Stick": {
+			"name": "Incienso",
+			"description": ""
+		},
+		"Hourglass": {
+			"name": "Reloj de arena",
+			"description": ""
+		},
+		"Cheesewheel": {
+			"name": "Rueda de queso",
+			"description": ""
+		},
+		"Holy Symbol": {
+			"name": "Símbolo sagrado",
+			"description": ""
+		},
+		"Key": {
+			"name": "Llave",
+			"description": ""
+		},
+		"Scrap of obscure book": {
+			"name": "Fragmento de Libro oscuro",
+			"description": ""
+		},
+		"20p IOU from a noblemouse": {
+			"name": "Pagaré de un ratón noble (20p)",
+			"description": ""
+		},
+		"Instrument": {
+			"name": "Instrumento musical",
+			"description": ""
+		},
+		"Dice": {
+			"name": "Dados",
+			"description": ""
+		},
+		"Perfume": {
+			"name": "Perfume",
+			"description": ""
+		},
+		"Hammer": {
+			"name": "Martillo",
+			"description": ""
+		},
+		"Poison": {
+			"name": "Veneno",
+			"description": ""
+		},
+		"Hireling": {
+			"name": "Ayudante",
+			"description": ""
+		},
+		"Drill": {
+			"name": "Taladro",
+			"description": ""
+		},
+		"Hireling: Drunken torchbearer": {
+			"name": "Ayudante: Portador de antorcha borracho",
+			"description": ""
+		},
+		"Felt hat": {
+			"name": "Sombrero de fieltro",
+			"description": ""
+		},
+		"Wooden Pole": {
+			"name": "Pértiga de madera",
+			"description": ""
+		},
+		"Jar of honey": {
+			"name": "Tarro de miel",
+			"description": ""
+		},
+		"Tent": {
+			"name": "Tienda",
+			"description": ""
+		},
+		"Soap": {
+			"name": "Jabón",
+			"description": ""
+		},
+		"Caltrops": {
+			"name": "Abrojos",
+			"description": ""
+		},
+		"Flask of coffee": {
+			"name": "Petaca de café",
+			"description": ""
+		},
+		"Padlock and Key": {
+			"name": "Candado con Llave",
+			"description": ""
+		},
+		"Twine": {
+			"name": "Cordel",
+			"description": ""
+		},
+		"Crowbar": {
+			"name": "Palanca",
+			"description": ""
+		},
+		"Fishing Hook": {
+			"name": "Anzuelo",
+			"description": ""
+		}
+	}
+}
