@@ -1,178 +1,211 @@
 import { MODULE_ID } from "./framework/paths.js";
+import { MRQOLSettingsApp } from "./apps/mrqol-settings-app.js";
 
 export function registerSettings() {
-  // Client preference: default content language to apply via sheet button
+  // ------------------------------------------------------------
+  // Settings Menu (Configure...)
+  // ------------------------------------------------------------
+  game.settings.registerMenu(MODULE_ID, "settings.configure", {
+    name: game.i18n.localize("MRQOL.Settings.Menu.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Menu.Hint"),
+    label: game.i18n.localize("MRQOL.Settings.Menu.Label"),
+    icon: "fas fa-cog",
+    type: MRQOLSettingsApp,
+    restricted: true
+  });
+
+  // ------------------------------------------------------------
+  // Client: Language preference for sync button
+  // (keep visible; frequently used per-user)
+  // ------------------------------------------------------------
   game.settings.register(MODULE_ID, "i18nSync.preferredLang", {
-    name: "Content Language (default)",
-    hint: "Default language used by the Actor/Item 'Language' button to sync imported documents.",
+    name: game.i18n.localize("MRQOL.Settings.I18nSync.PreferredLang.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.I18nSync.PreferredLang.Hint"),
     scope: "client",
     config: true,
     type: String,
     choices: {
-      world: "World language",
-      en: "English",
-      es: "Spanish"
+      world: game.i18n.localize("MRQOL.Settings.I18nSync.PreferredLang.Choices.World"),
+      en: game.i18n.localize("MRQOL.Settings.I18nSync.PreferredLang.Choices.En"),
+      es: game.i18n.localize("MRQOL.Settings.I18nSync.PreferredLang.Choices.Es")
     },
     default: "world"
   });
 
-  // Master toggles
+  // ------------------------------------------------------------
+  // World: Master toggles (keep visible; “top level”)
+  // ------------------------------------------------------------
   game.settings.register(MODULE_ID, "packs.core.enabled", {
-    name: "Core Pack",
-    hint: "Enable Core QOL features.",
+    name: game.i18n.localize("MRQOL.Settings.Packs.Core.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Packs.Core.Hint"),
     scope: "world",
     config: true,
     type: Boolean,
     default: true,
-	requiresReload: true
+    requiresReload: true
   });
 
   game.settings.register(MODULE_ID, "packs.automation.enabled", {
-    name: "Automation Pack",
-    hint: "Enable experimental automation features.",
+    name: game.i18n.localize("MRQOL.Settings.Packs.Automation.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Packs.Automation.Hint"),
     scope: "world",
     config: true,
     type: Boolean,
     default: false,
-	requiresReload: true
+    requiresReload: true
   });
 
   game.settings.register(MODULE_ID, "packs.integrations.enabled", {
-    name: "Integrations Pack",
-    hint: "Enable optional integrations.",
+    name: game.i18n.localize("MRQOL.Settings.Packs.Integrations.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Packs.Integrations.Hint"),
     scope: "world",
     config: true,
     type: Boolean,
     default: false,
-	requiresReload: true
+    requiresReload: true
   });
 
-  /* -------------------------------------------- */
-  /* Automation: Damage application                */
-  /* -------------------------------------------- */
-
+  // ------------------------------------------------------------
+  // World: High-level feature toggles (keep visible)
+  // ------------------------------------------------------------
   game.settings.register(MODULE_ID, "automation.damage.enabled", {
-    name: "Automation: Apply weapon damage",
-    hint: "Adds an 'Apply Damage' button to damage chat cards and can auto-apply damage to a single targeted token.",
+    name: game.i18n.localize("MRQOL.Settings.Automation.Damage.Enabled.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Automation.Damage.Enabled.Hint"),
     scope: "world",
     config: true,
     type: Boolean,
     default: true
   });
 
-  game.settings.register(MODULE_ID, "automation.damage.autoApply", {
-    name: "Automation: Auto-apply when 1 target",
-    hint: "When exactly one token is targeted, automatically apply damage as soon as a damage card is posted.",
+  game.settings.register(MODULE_ID, "automation.rest.enabled", {
+    name: game.i18n.localize("MRQOL.Settings.Automation.Rest.Enabled.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Automation.Rest.Enabled.Hint"),
     scope: "world",
     config: true,
+    type: Boolean,
+    default: true
+  });
+
+  game.settings.register(MODULE_ID, "core.inventoryLayout.enabled", {
+    name: game.i18n.localize("MRQOL.Settings.Core.InventoryLayout.Enabled.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Core.InventoryLayout.Enabled.Hint"),
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true
+  });
+
+  // ============================================================
+  // Everything below is configured via the MRQOL "Configure..." UI
+  // ============================================================
+
+  /* -------------------------------------------- */
+  /* Automation: Damage application               */
+  /* -------------------------------------------- */
+
+  game.settings.register(MODULE_ID, "automation.damage.autoApply", {
+    name: game.i18n.localize("MRQOL.Settings.Fields.automation.damage.autoApply.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Fields.automation.damage.autoApply.Hint"),
+    scope: "world",
+    config: false,
     type: Boolean,
     default: true
   });
 
   game.settings.register(MODULE_ID, "automation.damage.showButton", {
-    name: "Automation: Show 'Apply Damage' button",
-    hint: "Adds an 'Apply Damage' button on damage chat cards.",
+    name: game.i18n.localize("MRQOL.Settings.Fields.automation.damage.showButton.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Fields.automation.damage.showButton.Hint"),
     scope: "world",
-    config: true,
+    config: false,
     type: Boolean,
     default: true
   });
 
-/* -------------------------------------------- */
-/* Automation: Rest UI                           */
-/* -------------------------------------------- */
-
-  game.settings.register(MODULE_ID, "automation.rest.enabled", {
-    name: "Automation: Rest UI buttons (short/long/full)",
-    hint: "Adds rest buttons to actor sheets and applies Mausritter rest & healing rules with a chat log.",
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: true
-  });
-
-/* -------------------------------------------- */
-/* Automation: Wear (usage)                       */
-/* -------------------------------------------- */
+  /* -------------------------------------------- */
+  /* Automation: Wear (usage)                     */
+  /* -------------------------------------------- */
 
   game.settings.register(MODULE_ID, "automation.wear.enabled", {
-    name: "Automation: Wear after combat / spells",
-    hint: "Marks item usage after combat (d6, 4-6) and after spell casts (based on the spell roll).",
+    name: game.i18n.localize("MRQOL.Settings.Fields.automation.wear.enabled.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Fields.automation.wear.enabled.Hint"),
     scope: "world",
-    config: true,
+    config: false,
     type: Boolean,
     default: true
   });
 
   game.settings.register(MODULE_ID, "automation.wear.combat.equippedOnly", {
-    name: "Automation: Wear (combat) - equipped only",
-    hint: "If enabled, only equipped weapons/armour/ammunition are checked for wear at combat end.",
+    name: game.i18n.localize("MRQOL.Settings.Fields.automation.wear.combat.equippedOnly.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Fields.automation.wear.combat.equippedOnly.Hint"),
     scope: "world",
-    config: true,
+    config: false,
     type: Boolean,
     default: true
   });
 
   game.settings.register(MODULE_ID, "automation.wear.combat.includeAmmo", {
-    name: "Automation: Wear (combat) - include ammunition",
-    hint: "If enabled, ammunition items (tag: Ammunition) can also gain usage after combat.",
+    name: game.i18n.localize("MRQOL.Settings.Fields.automation.wear.combat.includeAmmo.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Fields.automation.wear.combat.includeAmmo.Hint"),
     scope: "world",
-    config: true,
+    config: false,
     type: Boolean,
     default: true
   });
 
   game.settings.register(MODULE_ID, "automation.wear.combat.alwaysMarkSilvered", {
-    name: "Automation: Wear (combat) - always mark silvered weapons",
-    hint: "If enabled, weapons with 'silver' in their name always mark 1 usage after combat (RAW for silvered weapons).",
+    name: game.i18n.localize("MRQOL.Settings.Fields.automation.wear.combat.alwaysMarkSilvered.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Fields.automation.wear.combat.alwaysMarkSilvered.Hint"),
     scope: "world",
-    config: true,
+    config: false,
     type: Boolean,
     default: true
   });
 
   game.settings.register(MODULE_ID, "automation.wear.spells.enabled", {
-    name: "Automation: Wear (spells)",
-    hint: "When a spell is cast, mark usage based on dice results (4-6) without re-rolling.",
+    name: game.i18n.localize("MRQOL.Settings.Fields.automation.wear.spells.enabled.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Fields.automation.wear.spells.enabled.Hint"),
     scope: "world",
-    config: true,
+    config: false,
     type: Boolean,
     default: true
   });
 
-/* -------------------------------------------- */
-/* Automation: STR 0 rule                        */
-/* -------------------------------------------- */
+  /* -------------------------------------------- */
+  /* Automation: STR 0 rule                       */
+  /* -------------------------------------------- */
 
-game.settings.register(MODULE_ID, "automation.strZero.houseRule.enabled", {
-  name: "Automation: House rule for STR 0 (instead of Dead)",
-  hint: "If enabled: when STR reaches 0, targets become Unconscious and gain the Injured condition instead of dying (RAW).",
-  scope: "world",
-  config: true,
-  type: Boolean,
-  default: false
-});
+  game.settings.register(MODULE_ID, "automation.strZero.houseRule.enabled", {
+    name: game.i18n.localize("MRQOL.Settings.Fields.automation.strZero.houseRule.enabled.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Fields.automation.strZero.houseRule.enabled.Hint"),
+    scope: "world",
+    config: false,
+    type: Boolean,
+    default: false
+  });
 
-game.settings.register(MODULE_ID, "automation.strZero.houseRule.scope", {
-  name: "Automation: House rule applies to",
-  hint: "Choose which actor types are affected by the STR 0 house rule.",
-  scope: "world",
-  config: true,
-  type: String,
-  choices: {
-    characters: "Only Mice (character)",
-    charactersHirelings: "Mice + Hirelings (character + hireling)",
-    allCreatures: "All creatures (character + hireling + creature)"
-  },
-  default: "characters"
-});
+  game.settings.register(MODULE_ID, "automation.strZero.houseRule.scope", {
+    name: game.i18n.localize("MRQOL.Settings.Fields.automation.strZero.houseRule.scope.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Fields.automation.strZero.houseRule.scope.Hint"),
+    scope: "world",
+    config: false,
+    type: String,
+    choices: {
+      characters: game.i18n.localize("MRQOL.Settings.Fields.automation.strZero.houseRule.scope.Choices.characters"),
+      charactersHirelings: game.i18n.localize("MRQOL.Settings.Fields.automation.strZero.houseRule.scope.Choices.charactersHirelings"),
+      allCreatures: game.i18n.localize("MRQOL.Settings.Fields.automation.strZero.houseRule.scope.Choices.allCreatures")
+    },
+    default: "characters"
+  });
 
-  // Repairs
+  /* -------------------------------------------- */
+  /* Core: Repairs                                */
+  /* -------------------------------------------- */
+
   game.settings.register(MODULE_ID, "core.repairs.enabled", {
     name: game.i18n.localize("MRQOL.Settings.Repairs.Enabled.Name"),
     hint: game.i18n.localize("MRQOL.Settings.Repairs.Enabled.Hint"),
     scope: "world",
-    config: true,
+    config: false,
     type: Boolean,
     default: true
   });
@@ -181,7 +214,7 @@ game.settings.register(MODULE_ID, "automation.strZero.houseRule.scope", {
     name: game.i18n.localize("MRQOL.Settings.Repairs.Rounding.Name"),
     hint: game.i18n.localize("MRQOL.Settings.Repairs.Rounding.Hint"),
     scope: "world",
-    config: true,
+    config: false,
     type: String,
     choices: {
       round: game.i18n.localize("MRQOL.Settings.Repairs.Rounding.Choices.Round"),
@@ -191,85 +224,66 @@ game.settings.register(MODULE_ID, "automation.strZero.houseRule.scope", {
     default: "round"
   });
 
-    game.settings.register(MODULE_ID, "core.repairs.rounding", {
-    name: "Repairs: Rounding",
-    hint: "How to round the pip cost per repaired dot (10% of item cost).",
-    scope: "world",
-    config: true,
-    type: String,
-    choices: {
-      round: "Nearest",
-      floor: "Down",
-      ceil: "Up"
-    },
-    default: "round"
-  });
+  /* -------------------------------------------- */
+  /* Core: Pips helpers                           */
+  /* -------------------------------------------- */
 
-  // Inventory layout / rules
-  game.settings.register(MODULE_ID, "core.inventoryLayout.enabled", {
-    name: "Inventory Layout: Enable",
-    hint: "Tracks inventory placement (Carried/Worn/Pack/Grit/Bank) and applies rules.",
-    scope: "world",
-    config: true,
-    type: Boolean,
-    default: true
-  });
-
-    // Pips helpers (Broken / Empty indicator)
   game.settings.register(MODULE_ID, "core.pipsHelpers.enabled", {
-    name: "Pips UI: Broken/Empty indicator",
-    hint: "Show a Broken icon for weapons/armour and an Empty icon for other items when usage dots are fully marked.",
+    name: game.i18n.localize("MRQOL.Settings.Fields.core.pipsHelpers.enabled.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Fields.core.pipsHelpers.enabled.Hint"),
     scope: "world",
-    config: true,
+    config: false,
     type: Boolean,
     default: true
   });
 
-  // Optional utility
+  /* -------------------------------------------- */
+  /* Core: Inventory layout / rules               */
+  /* -------------------------------------------- */
+
   game.settings.register(MODULE_ID, "core.inventoryLayout.reorderButton", {
-    name: "Inventory Layout: Reorder button",
-    hint: "Adds a sheet header button to auto-pack items into a valid grid layout (repairs broken placement flags).",
+    name: game.i18n.localize("MRQOL.Settings.Fields.core.inventoryLayout.reorderButton.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Fields.core.inventoryLayout.reorderButton.Hint"),
     scope: "world",
-    config: true,
+    config: false,
     type: Boolean,
     default: true
   });
-game.settings.register(MODULE_ID, "core.inventoryLayout.snap", {
-    name: "Inventory Layout: Snap",
-    hint: "Snap items to the nearest valid slot when dropped.",
+
+  game.settings.register(MODULE_ID, "core.inventoryLayout.snap", {
+    name: game.i18n.localize("MRQOL.Settings.Fields.core.inventoryLayout.snap.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Fields.core.inventoryLayout.snap.Hint"),
     scope: "world",
-    config: true,
+    config: false,
     type: Boolean,
     default: true
   });
 
   game.settings.register(MODULE_ID, "core.inventoryLayout.strict", {
-    name: "Inventory Layout: Prevent overlap in equipment",
-    hint: "Prevents multiple items occupying Carried/Worn/Grit/Bank slots. Pack can overlap.",
+    name: game.i18n.localize("MRQOL.Settings.Fields.core.inventoryLayout.strict.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Fields.core.inventoryLayout.strict.Hint"),
     scope: "world",
-    config: true,
+    config: false,
     type: Boolean,
     default: true
   });
 
   game.settings.register(MODULE_ID, "core.inventoryLayout.threshold", {
-    name: "Inventory Layout: Drop threshold",
-    hint: "How much of a slot must overlap the card to consider it placed (0.1–0.9).",
+    name: game.i18n.localize("MRQOL.Settings.Fields.core.inventoryLayout.threshold.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Fields.core.inventoryLayout.threshold.Hint"),
     scope: "world",
-    config: true,
+    config: false,
     type: Number,
     range: { min: 0.1, max: 0.9, step: 0.05 },
     default: 0.35
   });
 
-  // Encumbrance integration
   game.settings.register(MODULE_ID, "core.inventoryLayout.encumbrance.excludeItemPiles", {
-    name: "Encumbrance: Exclude Item Piles",
-    hint: "Do not apply Encumbered to Item Piles / loot pile actors.",
+    name: game.i18n.localize("MRQOL.Settings.Fields.core.inventoryLayout.encumbrance.excludeItemPiles.Name"),
+    hint: game.i18n.localize("MRQOL.Settings.Fields.core.inventoryLayout.encumbrance.excludeItemPiles.Hint"),
     scope: "world",
-    config: true,
+    config: false,
     type: Boolean,
     default: true
   });
 }
-

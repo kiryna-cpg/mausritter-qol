@@ -51,6 +51,13 @@ Hooks.once("init", async () => {
 Hooks.once("ready", () => {
   console.log("MRQOL | ready");
 
+    try {
+    PackManager.ready();
+    console.log("MRQOL | PackManager ready");
+  } catch (err) {
+    console.error("MRQOL | PackManager.ready failed", err);
+  }
+
   // Game Paused: replace the default clockwork icon with mouse icon (keep spin)
   const pauseIcon = `modules/${MODULE_ID}/assets/icons/mouse-icon-paused.svg`;
 

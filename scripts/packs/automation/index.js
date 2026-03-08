@@ -1081,8 +1081,10 @@ function isItemReadyToUse(actor, item) {
   const layout = item.getFlag(MODULE_ID, "layout");
   const zone = layout?.zone;
 
-  // If we cannot determine zone, be conservative
-  if (!zone) return false;
+  // If we cannot determine zone:
+  // - Characters: be conservative (block)
+  // - Hirelings/Creatures: be permissive (allow), because their items may lack layout.zone
+  if (!zone) return actor.type !== "character";
 
   // Spells: only Carried
   if (item.type === "spell") return zone === "carried";
@@ -1144,6 +1146,22 @@ function onRenderActorSheetForWeaponGate(app, html) {
         ? "MRQOL.Automation.Item.MustReadySpell"
         : "MRQOL.Automation.Item.MustReadyWeapon");
     }
+
+          // Also block broken/depleted items (usage dots full)
+      if (item.type === "weapon" && isItemBrokenByUsage(item)) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        warn("MRQOL.Automation.Weapon.Broken");
+        return;
+      }
+
+      // Optional: if you also want to prevent casting broken spells, uncomment:
+      if (item.type === "spell" && isItemBrokenByUsage(item)) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        warn("MRQOL.Automation.Spell.Broken");
+        return;
+      }
     },
     true // capture: run before sheet handlers
   );
@@ -1162,9 +1180,16 @@ function wrapRollWeapon(original) {
 
       // Only enforce for weapon items
       if (weapon?.type === "weapon") {
-        const ok = isWeaponEquippedForRoll(actor, weapon);
+        // 1) Must be equipped
+        const ok = isItemReadyToUse(actor, weapon);
         if (!ok) {
           warn("MRQOL.Automation.Weapon.MustEquip");
+          return null;
+        }
+
+        // 2) Must not be broken/depleted
+        if (isItemBrokenByUsage(weapon)) {
+          warn("MRQOL.Automation.Weapon.Broken");
           return null;
         }
       }
@@ -1174,6 +1199,19 @@ function wrapRollWeapon(original) {
 
     return original.apply(this, args);
   };
+}
+
+/**
+ * Item is "broken/depleted" when usage dots are all filled.
+ * Mausritter system uses system.pips.{value,max} for usage.
+ * @param {Item} item
+ * @returns {boolean}
+ */
+function isItemBrokenByUsage(item) {
+  const max = Number(foundry.utils.getProperty(item, "system.pips.max")) || 0;
+  const val = Number(foundry.utils.getProperty(item, "system.pips.value")) || 0;
+  if (!max) return false;          // items without pips are not considered breakable here
+  return val >= max;
 }
 
 /**
@@ -1319,60 +1357,72 @@ function pickPackCellFirstFreeElseLeastStack(actor) {
  * Falls back to a minimal condition item.
  * @returns {Promise<object>} plain item data for embedded creation
  */
+let __mrqolInjuredItemTemplatePromise = null;
 async function getInjuredItemTemplate() {
-  const candidates = ["Injured", "Herido", "Herida", "Lesionado", "Lesionada"];
+  if (!__mrqolInjuredItemTemplatePromise) {
+    __mrqolInjuredItemTemplatePromise = (async () => {
+      const candidates = ["Injured", "Herido", "Herida", "Lesionado", "Lesionada"];
 
-  // 1) World items: prefer type === "condition"
-  const worldHits = [];
-  for (const name of candidates) {
-    for (const it of game.items ?? []) {
-      if (it?.name !== name) continue;
-      worldHits.push(it);
-    }
-  }
-  const worldBest =
-    worldHits.find((i) => i.type === "condition") ?? worldHits[0] ?? null;
-
-  if (worldBest) {
-    const data = worldBest.toObject();
-    delete data._id;
-    return data;
-  }
-
-  // 2) Compendiums: prefer type === "condition"
-  /** @type {Array<{pack:any, _id:string, name:string, type?:string}>} */
-  const packHits = [];
-  for (const pack of game.packs) {
-    if (pack.documentName !== "Item") continue;
-    try {
-      const index = await pack.getIndex({ fields: ["name", "type"] });
-      for (const e of index) {
-        if (!candidates.includes(e.name)) continue;
-        packHits.push({ pack, _id: e._id, name: e.name, type: e.type });
+      // 1) World items: prefer type === "condition"
+      const worldHits = [];
+      for (const name of candidates) {
+        for (const it of game.items ?? []) {
+          if (it?.name !== name) continue;
+          worldHits.push(it);
+        }
       }
-    } catch (_e) {
-      // ignore
-    }
+
+      const worldBest =
+        worldHits.find((i) => i.type === "condition") ?? worldHits[0] ?? null;
+
+      if (worldBest) {
+        const data = worldBest.toObject();
+        delete data._id;
+        return data;
+      }
+
+      // 2) Compendiums: prefer type === "condition"
+      /** @type {Array<{pack:any, _id:string, name:string, type?:string}>} */
+      const packHits = [];
+      for (const pack of game.packs) {
+        if (pack.documentName !== "Item") continue;
+        try {
+          const index = await pack.getIndex({ fields: ["name", "type"] });
+          for (const e of index) {
+            if (!candidates.includes(e.name)) continue;
+            packHits.push({ pack, _id: e._id, name: e.name, type: e.type });
+          }
+        } catch (_e) {
+          // ignore
+        }
+      }
+
+      const best =
+        packHits.find((h) => h.type === "condition") ?? packHits[0] ?? null;
+
+      if (best) {
+        const doc = await best.pack.getDocument(best._id);
+        if (doc) {
+          const data = doc.toObject();
+          delete data._id;
+          return data;
+        }
+      }
+
+      // 3) Fallback (minimal)
+      return {
+        name: "Injured",
+        type: "condition",
+        system: {}
+      };
+    })().catch((err) => {
+      __mrqolInjuredItemTemplatePromise = null;
+      throw err;
+    });
   }
 
-  const best =
-    packHits.find((h) => h.type === "condition") ?? packHits[0] ?? null;
-
-  if (best) {
-    const doc = await best.pack.getDocument(best._id);
-    if (doc) {
-      const data = doc.toObject();
-      delete data._id;
-      return data;
-    }
-  }
-
-  // 3) Fallback (minimal)
-  return {
-    name: "Injured",
-    type: "condition",
-    system: {}
-  };
+  const data = await __mrqolInjuredItemTemplatePromise;
+  return foundry.utils.deepClone(data);
 }
 
 /**
@@ -1380,29 +1430,6 @@ async function getInjuredItemTemplate() {
  * Uses ActiveEffect with statuses:["unconscious"] to be system-agnostic.
  * @param {Actor} actor
  */
-/* async function ensureUnconsciousEffect(actor) {
-  const already = actor.effects?.some((e) => {
-    const sts = e.statuses ? Array.from(e.statuses) : [];
-    return sts.includes("unconscious");
-  });
-  if (already) return;
-
-  const cfg = Array.isArray(CONFIG.statusEffects)
-    ? CONFIG.statusEffects.find((s) => s.id === "unconscious")
-    : null;
-
-  const name = cfg?.name ?? game.i18n.localize("MRQOL.Automation.Unconscious.Name");
-  const icon = cfg?.icon ?? "icons/svg/unconscious.svg";
-
-  await actor.createEmbeddedDocuments("ActiveEffect", [
-    {
-      name,
-      icon,
-      statuses: ["unconscious"],
-      disabled: false
-    }
-  ]);
-} */
 
 /**
  * Try to find a status effect config entry by id or by name-key (e.g. EFFECT.StatusDead).
@@ -1516,7 +1543,7 @@ async function resolveStrInjurySave(message, target, strValue) {
   await message.setFlag(MODULE_ID, "automation.strInjuryProcessed", true);
 
   const roll = new Roll("1d20");
-  await roll.evaluate({ async: true });
+  await roll.evaluate();
   const total = roll.total ?? 0;
   const success = total <= (Number(strValue) || 0);
 

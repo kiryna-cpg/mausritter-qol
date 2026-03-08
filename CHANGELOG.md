@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on *Keep a Changelog*,
 and this project adheres to *Semantic Versioning*.
 
+## [0.1.7] - 2026-03-08
+### Changed
+- Settings app now resolves field labels, hints, ranges, and choices from the registered Foundry settings data.
+- Character Creator now caches compendium lookups for weapon options and item resolution.
+- Character Creator close flow is guarded against duplicate confirmation prompts.
+- Inventory observer cleanup and reorder flow were hardened for repeated sheet renders.
+- Game Paused icon handling is consolidated around the SVG asset.
+
+### Fixed
+- Settings labels for Core Inventory Layout and UI fields now display localized text correctly.
+- Character Creator exit confirmation no longer appears twice.
+- Repair header buttons no longer risk duplicate injection.
+- Injured item template lookups now reuse cached data after the first search.
+- Encumbered icon path now matches the real asset casing for case-sensitive environments.
+
 ## [0.1.6] - 2026-03-02
 ### Added
 - Core: Pips UI helpers (actor + item)

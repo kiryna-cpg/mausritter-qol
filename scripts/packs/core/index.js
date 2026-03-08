@@ -102,9 +102,13 @@ function injectRepairsUI(app, html) {
 
 function addHeaderButtons(app, buttons) {
   if (!game.settings.get(MODULE_ID, "core.repairs.enabled")) return;
+  if (!Array.isArray(buttons)) return;
 
   const item = getItemFromApp(app);
   if (!item?.actor) return;
+
+  // Avoid duplicate injection if multiple hooks fire for the same sheet.
+  if (buttons.some((b) => b?.class === "mrqol-repair-one" || b?.class === "mrqol-repair-all")) return;
 
   buttons.unshift(
     {
@@ -182,8 +186,7 @@ function injectPipsStateToItemSheet(app, html) {
 
 const INV_FLAG_KEY = "layout";
 const ENCUMBERED_ID = "encumbered";
-const ENCUMBERED_ICON = `modules/${MODULE_ID}/assets/icons/encumbered.png`;
-const EQUIP_ICON = `modules/${MODULE_ID}/assets/icons/mouse-icon.png`;
+const ENCUMBERED_ICON = `modules/${MODULE_ID}/assets/icons/Encumbered.png`;
 const OVERFLOW_ICON = `modules/${MODULE_ID}/assets/icons/overflow.svg`;
 const BROKEN_ICON = `modules/${MODULE_ID}/assets/icons/Broken.png`;
 const EMPTY_ICON = `modules/${MODULE_ID}/assets/icons/Empty.png`;
@@ -2348,24 +2351,46 @@ export async function mrqolReorderInventoryForActorSheet(actor) {
   const sheet = actor?.sheet;
   if (!actor || !sheet) return;
 
-  // Wait for the specific sheet instance to render, then reorder using the rendered HTML root.
+  const currentRoot = sheet?.element?.[0] ?? sheet?.element;
+  if (currentRoot?.querySelector) {
+    await reorderInventory(actor, currentRoot);
+    return;
+  }
+
   const rootEl = await new Promise((resolve) => {
-    const hookId = Hooks.once("renderActorSheet", (app, html) => {
-      // Make sure it's THIS actor's sheet
+    let done = false;
+
+    const finish = (el) => {
+      if (done) return;
+      done = true;
+
+      clearTimeout(timeoutId);
+      try {
+        Hooks.off("renderActorSheet", hookV1);
+      } catch (_) {}
+      try {
+        Hooks.off("renderActorSheetV2", hookV2);
+      } catch (_) {}
+
+      resolve(el);
+    };
+
+    const onRender = (app, html) => {
       if (app !== sheet) return;
 
-      // html is jQuery in legacy sheets; html[0] is HTMLElement
-      const el = html?.[0] ?? html;
-      resolve(el);
-    });
+      const el = html?.[0] ?? html ?? sheet?.element?.[0] ?? sheet?.element ?? null;
+      finish(el instanceof HTMLElement ? el : null);
+    };
 
-    // Trigger render (legacy sheets)
+    const hookV1 = Hooks.on("renderActorSheet", onRender);
+    const hookV2 = Hooks.on("renderActorSheetV2", onRender);
+
+    const timeoutId = setTimeout(() => {
+      const fallback = sheet?.element?.[0] ?? sheet?.element ?? null;
+      finish(fallback instanceof HTMLElement ? fallback : null);
+    }, 1000);
+
     sheet.render(true);
-
-    // Safety: if something goes wrong and the hook never fires, resolve null after a tick.
-    Promise.resolve().then(() => {
-      // no-op: keep promise pending; we want the actual render hook if possible
-    });
   });
 
   if (!rootEl || typeof rootEl.querySelector !== "function") {
@@ -2945,6 +2970,7 @@ function ensureInventoryObserver(app, root) {
   const existing = __mrqolInvObserversByApp.get(app);
   if (existing) {
     existing.root = root;
+    existing.observeRoot();
     existing.rebindDragArea();
     return;
   }
@@ -2955,7 +2981,8 @@ function ensureInventoryObserver(app, root) {
     dragObs: null,
     rootObs: null,
     dragEl: null,
-    timer: null
+    timer: null,
+    closeHooks: []
   };
 
   const schedule = () => {
@@ -3003,38 +3030,58 @@ function ensureInventoryObserver(app, root) {
     schedule();
   };
 
-  state.rebindDragArea = bindToDragArea;
+  const observeRoot = () => {
+    try {
+      state.rootObs?.disconnect();
+    } catch (_) {}
 
-  state.rootObs = new MutationObserver((mutations) => {
-    for (const m of mutations) {
-      if (m.type === "childList" && (m.addedNodes.length || m.removedNodes.length)) {
-        bindToDragArea();
-        return;
+    state.rootObs = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.type === "childList" && (m.addedNodes.length || m.removedNodes.length)) {
+          bindToDragArea();
+          return;
+        }
       }
-    }
-  });
+    });
 
-  state.rootObs.observe(root, {
-    childList: true,
-    subtree: true
-  });
+    state.rootObs.observe(state.root, {
+      childList: true,
+      subtree: true
+    });
+  };
 
+  state.rebindDragArea = bindToDragArea;
+  state.observeRoot = observeRoot;
+
+  observeRoot();
   bindToDragArea();
 
   const cleanup = (closingApp) => {
     if (closingApp !== app) return;
+
+    for (const hook of state.closeHooks) {
+      try {
+        Hooks.off(hook.event, hook.id);
+      } catch (_) {}
+    }
+    state.closeHooks = [];
+
     try {
       state.dragObs?.disconnect();
     } catch (_) {}
     try {
       state.rootObs?.disconnect();
     } catch (_) {}
+
     if (state.timer) clearTimeout(state.timer);
+
     __mrqolInvObserversByApp.delete(app);
   };
 
-  Hooks.on("closeActorSheet", cleanup);
-  Hooks.on("closeActorSheetV2", cleanup);
+  state.closeHooks = [
+    { event: "closeActorSheet", id: Hooks.on("closeActorSheet", cleanup) },
+    { event: "closeActorSheetV2", id: Hooks.on("closeActorSheetV2", cleanup) }
+  ];
 
   __mrqolInvObserversByApp.set(app, state);
 }
@@ -3230,27 +3277,9 @@ export const CorePack = {
     // I18n sync buttons (Actor/Item sheets)
     registerI18nSyncButtons();    
 
-        // Game Paused: replace the default clockwork icon with mouse icon (keep spin behavior)
-    try {
-      const pauseIcon = `modules/${MODULE_ID}/assets/icons/mouse-icon.png`;
-
-      // Foundry config (best-effort, forward-compatible)
-      CONFIG.ui = CONFIG.ui ?? {};
-      CONFIG.ui.pause = CONFIG.ui.pause ?? {};
-      if (typeof CONFIG.ui.pause === "object") CONFIG.ui.pause.icon = pauseIcon;
-
-      // If the pause element already exists (rare at init), update it too
-      const img = document.querySelector("#pause img");
-      if (img) img.setAttribute("src", pauseIcon);
-    } catch (err) {
-      console.warn("MRQOL | Failed to set pause icon", err);
-    }
-
     // Repairs
     Hooks.on("renderItemSheet", injectRepairsUI);
     Hooks.on("renderItemSheet", injectPipsStateToItemSheet);
-    Hooks.on("getApplicationHeaderButtons", addHeaderButtons);
-    Hooks.on("getApplicationV1HeaderButtons", addHeaderButtons);
     Hooks.on("getItemSheetHeaderButtons", addHeaderButtons);
 
     // Inventory layout
