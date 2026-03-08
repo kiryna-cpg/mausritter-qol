@@ -4,6 +4,48 @@ import { mrqolReorderInventoryForActorSheet } from "../index.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
+let __mrqolCCWeaponOptionsPromise = null;
+let __mrqolCCItemPackIndexesPromise = null;
+const __mrqolCCResolvedItemDataCache = new Map();
+
+function cloneCharacterCreatorData(data) {
+  return data ? foundry.utils.deepClone(data) : data;
+}
+
+function scoreCharacterCreatorItemPack(pack) {
+  const label = `${pack.metadata?.label ?? ""} ${pack.collection ?? ""}`.toLowerCase();
+  let score = 0;
+  if (label.includes("gear")) score += 10;
+  if (label.includes("mausritter")) score += 5;
+  return score;
+}
+
+async function getIndexedCharacterCreatorItemPacks() {
+  if (!__mrqolCCItemPackIndexesPromise) {
+    __mrqolCCItemPackIndexesPromise = (async () => {
+      const packs = Array.from(game.packs).filter((pack) => pack.documentName === "Item");
+      packs.sort((a, b) => scoreCharacterCreatorItemPack(b) - scoreCharacterCreatorItemPack(a));
+
+      const indexedPacks = [];
+      for (const pack of packs) {
+        try {
+          const index = await pack.getIndex({ fields: ["name", "type"] });
+          indexedPacks.push({ pack, index });
+        } catch (_err) {
+          // Ignore packs we can't index.
+        }
+      }
+
+      return indexedPacks;
+    })().catch((err) => {
+      __mrqolCCItemPackIndexesPromise = null;
+      throw err;
+    });
+  }
+
+  return __mrqolCCItemPackIndexesPromise;
+}
+
 /**
  * Character Creator wizard (ApplicationV2).
  *
@@ -40,48 +82,49 @@ export class MRQOLCharacterCreatorApp extends HandlebarsApplicationMixin(Applica
      * Minimal wizard state (will expand as we implement rolls/items).
      * @type {{ step: number, postToChat: boolean }}
      */
-this.resetWizard();
-this._createdThisSession = false;
-this._suppressCloseConfirm = false;
- }
-
-async #getWeaponOptions() {
-  if (this._weaponOptions) return this._weaponOptions;
-
-  const options = [];
-  for (const pack of game.packs) {
-    if (pack.documentName !== "Item") continue;
-    // Prefer system packs; but accept any pack that contains weapon items.
-    try {
-      const index = await pack.getIndex({ fields: ["type", "name"] });
-      const weaponRows = index.filter((e) => e.type === "weapon");
-      if (!weaponRows.length) continue;
-
-      for (const row of weaponRows) {
-        options.push({
-          uuid: `Compendium.${pack.collection}.${row._id}`,
-          name: row.name
-        });
-      }
-    } catch (_e) {
-      // ignore packs we can't index
-    }
+    this.resetWizard();
+    this._createdThisSession = false;
+    this._suppressCloseConfirm = false;
+    this._closeConfirmPromise = null;
+    this._isClosing = false;
   }
 
-  // De-dupe by name
-  const seen = new Set();
-  const deduped = options.filter((o) => {
-    const k = String(o.name).toLowerCase();
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
+async #getWeaponOptions() {
+  if (!__mrqolCCWeaponOptionsPromise) {
+    __mrqolCCWeaponOptionsPromise = (async () => {
+      const options = [];
+      const indexedPacks = await getIndexedCharacterCreatorItemPacks();
 
-  // Sort alphabetically
-  deduped.sort((a, b) => a.name.localeCompare(b.name));
+      for (const { pack, index } of indexedPacks) {
+        const weaponRows = index.filter((entry) => entry.type === "weapon");
+        if (!weaponRows.length) continue;
 
-  this._weaponOptions = deduped;
-  return deduped;
+        for (const row of weaponRows) {
+          options.push({
+            uuid: `Compendium.${pack.collection}.${row._id}`,
+            name: row.name
+          });
+        }
+      }
+
+      const seen = new Set();
+      const deduped = options.filter((option) => {
+        const key = String(option.name).toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      deduped.sort((a, b) => a.name.localeCompare(b.name));
+      return deduped;
+    })().catch((err) => {
+      __mrqolCCWeaponOptionsPromise = null;
+      throw err;
+    });
+  }
+
+  const options = await __mrqolCCWeaponOptionsPromise;
+  return foundry.utils.deepClone(options);
 }
 
 async #resolveItemDataByName(nameCandidates = []) {
@@ -139,7 +182,7 @@ async #resolveItemDataByName(nameCandidates = []) {
       if (base !== s) variants.push({ name: base, typeHint });
 
       // Special alias: Pole, 6" / Pértiga, 15 cm -> Wooden pole, 6"
-      // (Gear list uses "Wooden pole, 6\""). :contentReference[oaicite:4]{index=4}
+      // Gear list uses "Wooden pole, 6\"" as the canonical item name.
       if (lower === 'pole, 6"' || lowerStripped === 'pole, 6"' || lowerStripped === "pole, 6") {
         variants.push({ name: 'Wooden pole, 6"', typeHint: "item" });
       }
@@ -169,6 +212,11 @@ async #resolveItemDataByName(nameCandidates = []) {
   };
 
   const expanded = expandCandidates(nameCandidates);
+  const cacheKey = expanded.map((entry) => `${lc(entry.name)}|${entry.typeHint ?? ""}`).join("||");
+
+  if (cacheKey && __mrqolCCResolvedItemDataCache.has(cacheKey)) {
+    return cloneCharacterCreatorData(__mrqolCCResolvedItemDataCache.get(cacheKey));
+  }
 
   // Helper: does an item match a candidate row?
   const matches = (docOrRow, cand) => {
@@ -185,43 +233,27 @@ async #resolveItemDataByName(nameCandidates = []) {
     if (found) {
       const data = found.toObject();
       delete data._id;
-      return data;
+      if (cacheKey) __mrqolCCResolvedItemDataCache.set(cacheKey, data);
+      return cloneCharacterCreatorData(data);
     }
   }
 
-  // 2) Compendiums: scan all Item packs, but prefer those that look like "Gear", and also allow
-  // matching by type (spell/armor/weapon/item).
-  const packs = Array.from(game.packs).filter((p) => p.documentName === "Item");
+  // 2) Compendiums: use cached Item pack indexes and allow type-aware matching.
+  const indexedPacks = await getIndexedCharacterCreatorItemPacks();
 
-  const scorePack = (pack) => {
-    const label = `${pack.metadata?.label ?? ""} ${pack.collection ?? ""}`.toLowerCase();
-    // Prefer Mausritter gear packs; generic heuristic.
-    let score = 0;
-    if (label.includes("gear")) score += 10;
-    if (label.includes("mausritter")) score += 5;
-    return score;
-  };
+  for (const { pack, index } of indexedPacks) {
+    for (const cand of expanded) {
+      const row = index.find((entry) => matches(entry, cand));
+      if (!row) continue;
 
-  packs.sort((a, b) => scorePack(b) - scorePack(a));
-
-  for (const pack of packs) {
-    try {
-      const index = await pack.getIndex({ fields: ["name", "type"] });
-
-      for (const cand of expanded) {
-        const row = index.find((e) => matches(e, cand));
-        if (!row) continue;
-
-        const uuid = `Compendium.${pack.collection}.${row._id}`;
-        const doc = await fromUuid(uuid);
-        if (doc) {
-          const data = doc.toObject();
-          delete data._id;
-          return data;
-        }
+      const uuid = `Compendium.${pack.collection}.${row._id}`;
+      const doc = await fromUuid(uuid);
+      if (doc) {
+        const data = doc.toObject();
+        delete data._id;
+        if (cacheKey) __mrqolCCResolvedItemDataCache.set(cacheKey, data);
+        return cloneCharacterCreatorData(data);
       }
-    } catch (_e) {
-      // ignore packs we can't index
     }
   }
 
@@ -575,7 +607,7 @@ case "create": {
     flags: {
       [MODULE_ID]: {
         characterCreator: {
-          version: "0.1.6",
+          version: "0.1.7",
           snapshot: foundry.utils.deepClone(this.ccState)
         }
       }
@@ -694,6 +726,8 @@ return this.close();
   }
 
   resetWizard() {
+  this._createdThisSession = false;
+  this._suppressCloseConfirm = false;
   // Keep postToChat default ON, as per your requirement that rolls are visible.
   this.ccState = {
     step: 1,
@@ -740,26 +774,45 @@ return this.close();
 
 /** @override */
 async close(options = {}) {
+  if (this._isClosing) return;
+
   // If we explicitly suppress confirmation (used after Create Actor), just close.
   if (this._suppressCloseConfirm) {
     this._suppressCloseConfirm = false;
-    return super.close(options);
+    this._isClosing = true;
+    try {
+      return await super.close(options);
+    } finally {
+      this._isClosing = false;
+    }
   }
 
   // If no actor was created and the user has made progress, confirm before closing.
   if (!this._createdThisSession && this.#hasProgress()) {
-    const confirmed = await foundry.applications.api.DialogV2.confirm({
-      window: { title: game.i18n.localize("MRQOL.CharacterCreator.ConfirmExit.Title") },
-      content: `<p>${game.i18n.localize("MRQOL.CharacterCreator.ConfirmExit.Body")}</p>`,
-      yes: { label: game.i18n.localize("MRQOL.CharacterCreator.ConfirmExit.Yes") },
-      no: { label: game.i18n.localize("MRQOL.CharacterCreator.ConfirmExit.No") }
-    });
+    if (!this._closeConfirmPromise) {
+      this._closeConfirmPromise = foundry.applications.api.DialogV2.confirm({
+        window: { title: game.i18n.localize("MRQOL.CharacterCreator.ConfirmExit.Title") },
+        content: `<p>${game.i18n.localize("MRQOL.CharacterCreator.ConfirmExit.Body")}</p>`,
+        yes: { label: game.i18n.localize("MRQOL.CharacterCreator.ConfirmExit.Yes") },
+        no: { label: game.i18n.localize("MRQOL.CharacterCreator.ConfirmExit.No") }
+      }).finally(() => {
+        this._closeConfirmPromise = null;
+      });
+    }
 
-    if (!confirmed) return; // user chose to stay
+    const confirmed = await this._closeConfirmPromise;
+    if (!confirmed) return;
   }
 
+  if (this._isClosing) return;
+
   // IMPORTANT: do NOT reset here (so user can continue later)
-  return super.close(options);
+  this._isClosing = true;
+  try {
+    return await super.close(options);
+  } finally {
+    this._isClosing = false;
+  }
 }
 
 }

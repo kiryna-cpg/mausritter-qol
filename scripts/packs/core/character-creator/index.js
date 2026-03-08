@@ -69,7 +69,8 @@ export function registerCharacterCreator() {
       name === "ActorDirectory" ||
       name === "ActorsDirectory" ||
       name === "ActorsSidebarTab" ||
-      (typeof name === "string" && name.toLowerCase().includes("actor"));
+      app?.tabName === "actors" ||
+      app?.options?.id === "actors";
 
     if (!isActorsDirectory) return;
 

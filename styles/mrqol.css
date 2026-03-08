@@ -10,16 +10,6 @@
   flex: 1;
 }
 
-/* -------------------------------------------- */
-/* Game Paused: mouse icon (minimal override)   */
-/* -------------------------------------------- */
-
-/* Keep core layout untouched. Optional tint tweak only: */
-#pause img[src*="modules/mausritter-qol/assets/icons/mouse-icon.svg"] {
-  opacity: 0.65;
-  filter: grayscale(1) brightness(0.72) contrast(0.95);
-}
-
 /* ========================================================= */
 /* ACTOR SHEET INVENTORY (real Mausritter #drag-area)         */
 /* ========================================================= */

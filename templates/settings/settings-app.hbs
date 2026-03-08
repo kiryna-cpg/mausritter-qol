@@ -1,0 +1,69 @@
+<form class="mrqol-settings">
+  <nav class="tabs" data-group="primary">
+    {{#each schema}}
+      <a class="item" data-tab="{{this.tab}}">{{this.title}}</a>
+    {{/each}}
+  </nav>
+
+  <section class="content">
+    {{#each schema}}
+      <div class="tab" data-group="primary" data-tab="{{this.tab}}">
+        {{#if this.notice}}
+          <div class="notification warning">
+            <i class="fas fa-triangle-exclamation"></i> {{this.notice}}
+          </div>
+        {{/if}}
+        {{#each this.sections}}
+          <fieldset class="mrqol-settings-section">
+            <legend>{{this.title}}</legend>
+
+            {{#if this.htmlHint}}
+              <p class="notes">{{this.htmlHint}}</p>
+            {{/if}}
+
+            {{#each this.settings}}
+              <div class="form-group">
+                <label>{{this.label}}</label>
+
+                <div class="form-fields">
+                  {{#if (eq this.type "boolean")}}
+                    <input type="checkbox" name="{{this.encoded}}" {{checked this.value}} {{#if this.disabled}}disabled{{/if}} />
+
+                  {{else if (eq this.type "select")}}
+                    <select name="{{this.encoded}}" {{#if this.disabled}}disabled{{/if}}>
+                      {{#each this.selectChoices}}
+                        <option value="{{this.value}}" {{#if (eq ../value this.value)}}selected{{/if}}>{{this.label}}</option>
+                      {{/each}}
+                    </select>
+
+                  {{else if (eq this.type "range")}}
+                    <input type="range"
+                      name="{{this.encoded}}"
+                      min="{{this.min}}"
+                      max="{{this.max}}"
+                      step="{{this.step}}"
+                      value="{{this.value}}"
+                      {{#if this.disabled}}disabled{{/if}}
+                    />
+                    <span class="range-value">{{this.value}}</span>
+
+                  {{else}}
+                    <input type="text" name="{{this.encoded}}" value="{{this.value}}" {{#if this.disabled}}disabled{{/if}} />
+                  {{/if}}
+                </div>
+
+                <p class="notes">{{this.hint}}</p>
+              </div>
+            {{/each}}
+          </fieldset>
+        {{/each}}
+      </div>
+    {{/each}}
+  </section>
+
+  <footer class="sheet-footer flexrow">
+    <button type="submit">
+      <i class="fas fa-save"></i> {{localize "SETTINGS.Save"}}
+    </button>
+  </footer>
+</form>

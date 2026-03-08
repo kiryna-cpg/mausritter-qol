@@ -159,9 +159,9 @@ export function buildCharacterSystemData({ abilityTotals, hp, pips, backgroundTe
     health: { value: hp, min: 0, max: hp },
     pips: { value: pips },
     stats: {
-      strength: { value: abilityTotals.str, max: abilityTotals.str, label: "Strength" },
-      dexterity: { value: abilityTotals.dex, max: abilityTotals.dex, label: "Dexterity" },
-      will: { value: abilityTotals.wil, max: abilityTotals.wil, label: "Will" }
+      strength: { value: abilityTotals.str, max: abilityTotals.str, label: game.i18n.localize("MRQOL.CharacterCreator.Abilities.STR") },
+      dexterity: { value: abilityTotals.dex, max: abilityTotals.dex, label: game.i18n.localize("MRQOL.CharacterCreator.Abilities.DEX") },
+      will: { value: abilityTotals.wil, max: abilityTotals.wil, label: game.i18n.localize("MRQOL.CharacterCreator.Abilities.WIL") }
     },
     description: {
       background: backgroundText ?? "",
